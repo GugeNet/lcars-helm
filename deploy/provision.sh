@@ -72,7 +72,7 @@ log() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 log "Installing system packages"
 sudo apt-get update -qq
 # jq and curl are not optional: the updater cannot read a release without them.
-sudo apt-get install -y --no-install-recommends ca-certificates curl git jq
+sudo apt-get install -y --no-install-recommends ca-certificates curl git jq procps
 
 if [[ "$SKIP_KIOSK" == "no" ]]; then
   # Raspberry Pi OS calls it `chromium`; plain Debian and older images use
