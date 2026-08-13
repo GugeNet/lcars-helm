@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAnchorStore, useAnchorWatch } from './situations/anchorStore.js'
-import { useNumbers } from './store/vesselStore.js'
+import { useNumbers, type DataHealth } from './store/vesselStore.js'
 import { DEPTH_ALARM } from './dashboards/tones.js'
 import { STOPPED_SPEED } from './situations/detect.js'
 
@@ -9,6 +9,42 @@ export interface Alert {
   message: string
   alarm: boolean
   actions?: { label: string; onClick: () => void }[]
+}
+
+/**
+ * What to say when the display cannot see the boat.
+ *
+ * The wording distinguishes losing Signal K from Signal K losing the
+ * instruments, because those send you to different places: one is the server or
+ * the network, the other is the gateway or the bus. An empty dashboard on its
+ * own tells the crew neither.
+ */
+export function describeDataHealth(
+  health: DataHealth,
+  silentForMs: number | null
+): { key: string; message: string } | null {
+  switch (health) {
+    case 'live':
+      return null
+    case 'disconnected':
+      return {
+        key: 'link-down',
+        message: 'No link to Signal K — reconnecting'
+      }
+    case 'no-data':
+      return {
+        key: 'no-data',
+        message: 'No instrument data — Signal K is running but the NMEA 2000 gateway is not reporting'
+      }
+    case 'stale': {
+      const seconds = silentForMs === null ? null : Math.round(silentForMs / 1000)
+      const since = seconds === null ? '' : ` for ${seconds < 90 ? `${seconds}s` : `${Math.round(seconds / 60)} min`}`
+      return {
+        key: 'stale-data',
+        message: `Instrument data has stopped${since} — last values shown are old`
+      }
+    }
+  }
 }
 
 export interface AlertInput {

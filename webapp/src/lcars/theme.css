@@ -419,6 +419,15 @@
   animation: lcars-alert-pulse 1.1s steps(1, end) infinite;
 }
 
+/* A fault is the display admitting it cannot see the boat. It has to be as
+   visible as an alarm — an unexplained blank screen is worse than a warning —
+   but it does not pulse and does not sound, because instruments being switched
+   off at the dock is a normal state of affairs. */
+.lcars-alert--fault {
+  background: var(--lcars-mars);
+  color: #ffffff;
+}
+
 .lcars-alert__message {
   flex: 1 1 auto;
   min-width: 0;
@@ -442,6 +451,10 @@
 
 .lcars-alert--alarm .lcars-button {
   color: var(--lcars-alarm);
+}
+
+.lcars-alert--fault .lcars-button {
+  color: var(--lcars-mars);
 }
 
 @keyframes lcars-alert-pulse {
