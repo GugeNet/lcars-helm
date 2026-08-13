@@ -24,3 +24,6 @@ Thumbs.db
 
 # vite build output; the published package ships it, git does not
 webapp/public/
+
+# release tarballs built by npm pack
+dist/

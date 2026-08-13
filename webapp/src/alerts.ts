@@ -2,13 +2,28 @@ import { useEffect, useRef } from 'react'
 import { useAnchorStore, useAnchorWatch } from './situations/anchorStore.js'
 import { useNumbers } from './store/vesselStore.js'
 import { DEPTH_ALARM } from './dashboards/tones.js'
-import type { SituationId } from './situations/types.js'
+import { STOPPED_SPEED } from './situations/detect.js'
 
 export interface Alert {
   key: string
   message: string
   alarm: boolean
   actions?: { label: string; onClick: () => void }[]
+}
+
+export interface AlertInput {
+  /** Whether an anchor fix has been set. */
+  anchorSet: boolean
+  /** Distance from the anchor in metres. */
+  distanceFromAnchor: number | null
+  alarmRadius: number
+  /** Whether the boat is outside the alarm circle. */
+  breached: boolean
+  /** Whether the crew has silenced the anchor alarm. */
+  acknowledged: boolean
+  depthBelowTransducer: number | null
+  /** Speed over ground, m/s. */
+  speedOverGround: number | null
 }
 
 /**
@@ -18,36 +33,63 @@ export interface Alert {
  * out of water outranks a suggestion to change situation. Anything less than
  * that belongs on the dashboard, not in an interruption.
  */
-export function useTopAlert(situation: SituationId): Alert | null {
-  const { anchor, distance, breached, alarmRadius } = useAnchorWatch()
-  const acknowledged = useAnchorStore((state) => state.acknowledged)
-  const acknowledge = useAnchorStore((state) => state.acknowledge)
-  const { depthBelowTransducer } = useNumbers(['depthBelowTransducer'])
-
-  if (anchor && breached && !acknowledged) {
+export function chooseAlert(input: AlertInput): Omit<Alert, 'actions'> | null {
+  if (input.anchorSet && input.breached && !input.acknowledged) {
+    const distance =
+      input.distanceFromAnchor === null ? '' : `${input.distanceFromAnchor.toFixed(0)} m `
     return {
       key: 'anchor-drag',
-      message: `Anchor drag — ${distance === null ? '' : `${distance.toFixed(0)} m`} from a ${alarmRadius} m circle`,
-      alarm: true,
-      actions: [{ label: 'Silence', onClick: acknowledge }]
+      message: `Anchor drag — ${distance}from a ${input.alarmRadius} m circle`,
+      alarm: true
     }
   }
 
-  // In a marina the boat is tied up and the depth is what it is; the shallow
-  // alarm there would cry wolf at every low tide.
+  // Shallow water is only alarming when the boat is going somewhere. Tied up in
+  // a shallow berth, or lying quietly at anchor, the depth is simply the depth —
+  // and a standing alarm there would both cry wolf and, since alarms outrank
+  // everything else on the banner, hide the suggestion to switch to the
+  // situation that explains it.
+  const makingWay = input.speedOverGround !== null && input.speedOverGround > STOPPED_SPEED
   if (
-    situation !== 'marina' &&
-    depthBelowTransducer !== null &&
-    depthBelowTransducer < DEPTH_ALARM
+    makingWay &&
+    input.depthBelowTransducer !== null &&
+    input.depthBelowTransducer < DEPTH_ALARM
   ) {
     return {
       key: 'shallow',
-      message: `Shallow water — ${depthBelowTransducer.toFixed(1)} m below the transducer`,
+      message: `Shallow water — ${input.depthBelowTransducer.toFixed(1)} m below the transducer`,
       alarm: true
     }
   }
 
   return null
+}
+
+/** The current alert, with whatever the crew can do about it attached. */
+export function useTopAlert(): Alert | null {
+  const { anchor, distance, breached, alarmRadius } = useAnchorWatch()
+  const acknowledged = useAnchorStore((state) => state.acknowledged)
+  const acknowledge = useAnchorStore((state) => state.acknowledge)
+  const { depthBelowTransducer, speedOverGround } = useNumbers([
+    'depthBelowTransducer',
+    'speedOverGround'
+  ])
+
+  const alert = chooseAlert({
+    anchorSet: anchor !== null,
+    distanceFromAnchor: distance,
+    alarmRadius,
+    breached,
+    acknowledged,
+    depthBelowTransducer,
+    speedOverGround
+  })
+
+  if (!alert) return null
+  if (alert.key === 'anchor-drag') {
+    return { ...alert, actions: [{ label: 'Silence', onClick: acknowledge }] }
+  }
+  return alert
 }
 
 /**

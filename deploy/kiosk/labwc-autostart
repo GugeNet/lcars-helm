@@ -1,0 +1,5 @@
+# Started by labwc, the Wayland compositor on Raspberry Pi OS trixie, when the
+# desktop session begins. Installed to ~/.config/labwc/autostart by
+# deploy/provision.sh.
+
+/usr/local/bin/lcars-kiosk >/tmp/lcars-kiosk.log 2>&1 &

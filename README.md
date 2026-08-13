@@ -99,6 +99,22 @@ The front end has a dashboard for each of the situations the boat is actually us
 The app suggests a situation from the sensor data and asks for a single tap to confirm;
 it never switches by itself, and the situation can always be set by hand.
 
+## On the boat
+
+`deploy/` provisions a Raspberry Pi end to end — Signal K, its plugins, the Chromium
+kiosk and an updater that installs new releases from GitHub by itself:
+
+```bash
+deploy/provision.sh --ydwg-host 192.168.1.50 --cerbo-host 192.168.1.51
+```
+
+Tagging a version publishes a release, and the boat picks it up within ten minutes.
+The updater verifies checksums before installing and rolls back to the previous
+version if the display does not come back — see [deploy/README.md](deploy/README.md).
+
+The spare Pi is provisioned with the same script, pointed at whichever machine is
+running the simulator, so the bench setup differs from the boat only in host names.
+
 ## Tests
 
 ```bash
@@ -106,7 +122,9 @@ npm test
 ```
 
 The simulator's tests encode every PGN it transmits and decode it again with the same
-canboat parser Signal K uses, which is what keeps the emulated bus honest.
+canboat parser Signal K uses, which is what keeps the emulated bus honest. The rest
+cover the parts where being wrong would matter at sea: the situation-detection rules,
+which alert wins the banner, cross-track error, and the anchor-swing model.
 
 ## Licence
 

@@ -47,7 +47,7 @@ export function App(): ReactNode {
   const acceptSuggestion = useSituationStore((state) => state.accept)
   const dismissSuggestion = useSituationStore((state) => state.dismiss)
 
-  const alert = useTopAlert(active)
+  const alert = useTopAlert()
   useAlarmSound(alert?.alarm === true)
 
   // An alarm always wins the banner; a suggestion only appears when nothing is
