@@ -47,10 +47,16 @@ npm run dev:signalk
 npm run dev:web
 ```
 
-`dev:signalk` renders `deploy/signalk/settings.template.json` into a local, git-ignored
-`.signalk-dev/` directory pointing at the simulator on `127.0.0.1:1457`, then starts the
+`dev:signalk` renders the templates in `deploy/signalk/` into a local, git-ignored
+`.signalk-dev/` directory pointing at the simulator on `127.0.0.1`, then starts the
 server. Signal K's own admin UI is at <http://localhost:3000>, and its data browser is
 the quickest way to confirm the simulator is being decoded.
+
+The Victron side needs the plugin installed once into that config directory:
+
+```bash
+npm --prefix .signalk-dev install signalk-venus-plugin
+```
 
 ### The simulator
 
@@ -58,16 +64,20 @@ the quickest way to confirm the simulator is being decoded.
 npm run dev:sim -- --scenario anchored --speed 10
 ```
 
-It serves Yacht Devices RAW frames over TCP exactly as a YDWG-02 does, so Signal K
-connects to it with the stock **Yacht Devices RAW TCP (canboatjs)** data connection.
+It impersonates both pieces of hardware at once. It serves Yacht Devices RAW frames
+over TCP exactly as a YDWG-02 does, so Signal K connects with the stock **Yacht
+Devices RAW TCP (canboatjs)** data connection; and it runs an MQTT broker publishing
+the Venus topic tree, so `signalk-venus-plugin` talks to it as though it were the
+Cerbo GX — portal-id discovery, keepalives and all.
 
-| Option            | Meaning                                              |
-| ----------------- | ---------------------------------------------------- |
+| Option            | Meaning                                                |
+| ----------------- | ------------------------------------------------------ |
 | `--scenario <id>` | `cruising`, `motoring`, `racing`, `anchored`, `marina` |
-| `--tcp-port`      | RAW server port (default 1457)                       |
-| `--speed`         | Simulated seconds per real second                    |
-| `--rate`          | Simulation ticks per second (default 10)             |
-| `--list`          | Describe the available scenarios                     |
+| `--tcp-port`      | YDWG RAW server port (default 1457)                    |
+| `--mqtt-port`     | Emulated Cerbo GX MQTT port (default 1883, 0 disables) |
+| `--speed`         | Simulated seconds per real second                      |
+| `--rate`          | Simulation ticks per second (default 10)               |
+| `--list`          | Describe the available scenarios                       |
 
 While it runs, typing a scenario name and pressing Enter switches to it, which is the
 fastest way to check that the front end follows a change of situation.

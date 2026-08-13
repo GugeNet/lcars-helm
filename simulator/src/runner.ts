@@ -1,9 +1,13 @@
 import { Simulation } from './model/simulation.js'
+import { CerboGateway } from './protocol/cerbo.js'
 import { createEmitters, describeState, type PgnEmitter } from './protocol/pgns.js'
 import { YdwgGateway } from './protocol/ydwg.js'
 import { createScenario, type SituationId } from './scenarios/index.js'
 import type { SimulatorConfig } from './config.js'
 import type { PGN } from '@canboat/ts-pgns'
+
+/** How often the emulated Cerbo publishes its electrical values. */
+const CERBO_INTERVAL_MS = 1000
 
 export interface RunnerEvents {
   onLog?: (message: string) => void
@@ -21,11 +25,13 @@ export class SimulatorRunner {
   private readonly emitters: PgnEmitter[] = createEmitters()
   private readonly lastEmitted = new Map<string, number>()
   private readonly gateway: YdwgGateway
+  private readonly cerbo: CerboGateway | null
   private simulation: Simulation
   private timer: NodeJS.Timeout | null = null
   private sid = 0
   private simulatedClock = 0
   private lastStatusAt = 0
+  private lastCerboPublishAt = 0
 
   constructor(config: SimulatorConfig, events: RunnerEvents = {}) {
     this.config = config
@@ -39,6 +45,15 @@ export class SimulatorRunner {
       host: config.host,
       onLog: (message) => this.log(message)
     })
+    this.cerbo =
+      config.mqttPort > 0
+        ? new CerboGateway({
+            port: config.mqttPort,
+            portalId: config.portalId,
+            host: config.host,
+            onLog: (message) => this.log(message)
+          })
+        : null
   }
 
   private log(message: string): void {
@@ -59,6 +74,7 @@ export class SimulatorRunner {
 
   async start(): Promise<void> {
     await this.gateway.start()
+    await this.cerbo?.start()
     const tickMs = 1000 / this.config.rate
     const dt = (tickMs / 1000) * this.config.speed
 
@@ -85,6 +101,13 @@ export class SimulatorRunner {
 
     if (batch.length > 0) this.gateway.send(batch)
 
+    // Victron equipment reports far more slowly than the instrument bus; once a
+    // second is already generous for a battery monitor.
+    if (this.cerbo && this.simulatedClock - this.lastCerboPublishAt >= CERBO_INTERVAL_MS) {
+      this.lastCerboPublishAt = this.simulatedClock
+      this.cerbo.publish(state)
+    }
+
     if (
       this.config.statusInterval > 0 &&
       this.simulatedClock - this.lastStatusAt >= this.config.statusInterval * 1000
@@ -107,6 +130,6 @@ export class SimulatorRunner {
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
-    await this.gateway.stop()
+    await Promise.all([this.gateway.stop(), this.cerbo?.stop() ?? Promise.resolve()])
   }
 }

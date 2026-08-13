@@ -16,7 +16,7 @@
     "dev:sim": "npm run dev -w @lcars-helm/simulator",
     "dev:web": "npm run dev -w lcars-helm",
     "setup:signalk": "node scripts/setup-dev-signalk.mjs",
-    "dev:signalk": "node scripts/setup-dev-signalk.mjs && signalk-server --configdir .signalk-dev"
+    "dev:signalk": "node scripts/setup-dev-signalk.mjs && node scripts/dev-signalk.mjs"
   },
   "devDependencies": {
     "signalk-server": "^2.13.0"

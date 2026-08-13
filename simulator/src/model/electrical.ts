@@ -105,6 +105,7 @@ export class ElectricalModel {
       batteryTemperature: celsius(19),
       stateOfCharge: this.stateOfCharge,
       consumedAmpHours: this.consumedAh,
+      capacityAmpHours: this.config.capacityAh,
       solarPower,
       alternatorPower,
       shorePower,

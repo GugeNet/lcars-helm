@@ -10,25 +10,44 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
-const templatePath = join(repoRoot, 'deploy', 'signalk', 'settings.template.json')
+const deployDir = join(repoRoot, 'deploy', 'signalk')
 const configDir = join(repoRoot, '.signalk-dev')
-const settingsPath = join(configDir, 'settings.json')
 
 const ydwgHost = process.env.LCARS_YDWG_HOST ?? '127.0.0.1'
 const ydwgPort = process.env.LCARS_YDWG_PORT ?? '1457'
+const cerboHost = process.env.LCARS_CERBO_HOST ?? '127.0.0.1'
+const cerboPort = process.env.LCARS_CERBO_PORT ?? '1883'
 
-if (existsSync(settingsPath) && !process.argv.includes('--force')) {
-  console.log(`${settingsPath} already exists; pass --force to overwrite.`)
-  process.exit(0)
+const substitutions = {
+  __YDWG_HOST__: ydwgHost,
+  __YDWG_PORT__: ydwgPort,
+  __CERBO_HOST__: cerboHost,
+  __CERBO_PORT__: cerboPort
 }
 
-const rendered = readFileSync(templatePath, 'utf8')
-  .replace('__YDWG_HOST__', ydwgHost)
-  .replace('__YDWG_PORT__', ydwgPort)
+function render(templatePath, outputPath) {
+  if (existsSync(outputPath) && !process.argv.includes('--force')) {
+    console.log(`${outputPath} already exists; pass --force to overwrite.`)
+    return
+  }
 
-// Fail loudly rather than handing the server a file it will reject at startup.
-JSON.parse(rendered)
+  let text = readFileSync(templatePath, 'utf8')
+  for (const [token, value] of Object.entries(substitutions)) {
+    text = text.split(token).join(value)
+  }
 
-mkdirSync(configDir, { recursive: true })
-writeFileSync(settingsPath, rendered)
-console.log(`wrote ${settingsPath} (YDWG at ${ydwgHost}:${ydwgPort})`)
+  // Fail loudly rather than handing the server a file it will reject at startup.
+  JSON.parse(text)
+
+  mkdirSync(dirname(outputPath), { recursive: true })
+  writeFileSync(outputPath, text)
+  console.log(`wrote ${outputPath}`)
+}
+
+render(join(deployDir, 'settings.template.json'), join(configDir, 'settings.json'))
+render(
+  join(deployDir, 'plugin-config-data', 'venus.json'),
+  join(configDir, 'plugin-config-data', 'venus.json')
+)
+
+console.log(`YDWG at ${ydwgHost}:${ydwgPort}, Cerbo at ${cerboHost}:${cerboPort}`)

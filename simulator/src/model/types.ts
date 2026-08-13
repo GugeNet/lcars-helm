@@ -42,6 +42,8 @@ export interface ElectricalState {
   stateOfCharge: number
   /** Amp-hours drawn since full. */
   consumedAmpHours: number
+  /** Nominal bank capacity, amp-hours. */
+  capacityAmpHours: number
   /** Solar array output, Watt. */
   solarPower: number
   /** Alternator output, Watt. */

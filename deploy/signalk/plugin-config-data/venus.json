@@ -1,0 +1,32 @@
+{
+  "$comment": "Victron Venus plugin configuration. The Cerbo GX is reached over plain MQTT on the boat network; the simulator's emulated Cerbo answers on the same protocol, so this file is identical on the boat and on the bench apart from the host. Instance mappings give the bank and the charger stable Signal K names, otherwise the paths carry raw Victron instance numbers that change if equipment is swapped.",
+  "enabled": true,
+  "enableDebug": false,
+  "configuration": {
+    "installType": "mqtt",
+    "MQTT": {
+      "host": "__CERBO_HOST__",
+      "port": __CERBO_PORT__
+    },
+    "pollInterval": 20,
+    "useDeviceNames": false,
+    "usePosition": false,
+    "instanceMappings": [
+      {
+        "type": "com.victronenergy.battery",
+        "venusId": "512",
+        "signalkId": "house"
+      },
+      {
+        "type": "com.victronenergy.solarcharger",
+        "venusId": "0",
+        "signalkId": "main"
+      },
+      {
+        "type": "com.victronenergy.vebus",
+        "venusId": "276",
+        "signalkId": "main"
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Panel, PillButton, Readout, TrendGraph } from '../lcars/index.js'
-import { bearing, hectopascal, knots, metres, NO_DATA, percent } from '../format.js'
+import { bearing, duration, hectopascal, knots, metres, NO_DATA, percent } from '../format.js'
 import { unwrapAngles, useHistory } from '../store/useHistory.js'
 import { useNumbers, usePosition } from '../store/vesselStore.js'
 import {
@@ -18,10 +18,23 @@ const WATCHED = [
   'depthBelowTransducer',
   'pressure',
   'batteryStateOfCharge',
-  'batteryCurrent'
+  'batteryCurrent',
+  'batteryTimeRemaining'
 ] as const
 
 const RADIUS_STEP = 5
+
+/**
+ * "Will the batteries last the night" is the question at anchor, so the label
+ * carries the answer — the current draw, and the time the monitor thinks is
+ * left at that draw — while the percentage stays the headline number.
+ */
+function batteryLabel(current: number | null, timeRemaining: number | null): string {
+  const draw = current === null ? null : `${current > 0 ? '+' : ''}${current.toFixed(0)} A`
+  const left = timeRemaining === null ? null : `${duration(timeRemaining)} left`
+  const parts = [draw, left].filter((part): part is string => part !== null)
+  return parts.length > 0 ? `Battery · ${parts.join(' · ')}` : 'Battery'
+}
 
 /**
  * At anchor. Three things matter overnight: whether the boat is staying put,
@@ -72,7 +85,7 @@ export function AnchoredDashboard(): ReactNode {
       </div>
       <div style={{ gridArea: 'soc' }}>
         <Readout
-          label={`Battery · ${values.batteryCurrent === null ? '—' : `${values.batteryCurrent.toFixed(0)} A`}`}
+          label={batteryLabel(values.batteryCurrent, values.batteryTimeRemaining)}
           value={percent(values.batteryStateOfCharge)}
           unit="%"
           tone={chargeTone(values.batteryStateOfCharge)}

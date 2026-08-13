@@ -51,13 +51,18 @@ export const PATHS = {
   engineAlternatorVoltage: 'propulsion.port.alternatorVoltage',
   engineFuelRate: 'propulsion.port.fuel.rate',
 
-  // Electrical — these arrive from the Victron plugin rather than the N2K bus
+  // Electrical. These arrive from signalk-venus-plugin talking to the Cerbo GX,
+  // not from the NMEA 2000 bus. The `house` and `main` instance names come from
+  // the instanceMappings in deploy/signalk/plugin-config-data/venus.json; without
+  // those the paths would carry raw Victron instance numbers.
   batteryStateOfCharge: 'electrical.batteries.house.capacity.stateOfCharge',
   batteryVoltage: 'electrical.batteries.house.voltage',
   batteryCurrent: 'electrical.batteries.house.current',
   batteryPower: 'electrical.batteries.house.power',
+  batteryTimeRemaining: 'electrical.batteries.house.capacity.timeRemaining',
   solarPower: 'electrical.solar.main.panelPower',
-  shorePower: 'electrical.chargers.shore.acin.power',
+  // Shore power is what the Multiplus draws on its AC input.
+  shorePower: 'electrical.inverters.main.acin.power',
 
   // Anchor, published by the anchor alarm plugin
   anchorPosition: 'navigation.anchor.position',
