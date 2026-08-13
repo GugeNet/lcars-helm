@@ -23,12 +23,11 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
+  "//": "Everything is a devDependency on purpose. What ships is `public/` — static files Vite has already bundled React and zustand into — so the package has no runtime dependencies at all. Listing them as `dependencies` would make the boat download React over 4G on every update and never load it.",
+  "devDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^5.0.2"
-  },
-  "devDependencies": {
+    "zustand": "^5.0.2",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^6.0.5",
