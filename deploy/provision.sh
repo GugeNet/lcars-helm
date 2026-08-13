@@ -100,7 +100,9 @@ fi
 
 if ! command -v signalk-server >/dev/null 2>&1; then
   log "Installing Signal K server"
-  sudo npm install -g --unsafe-perm signalk-server
+  # No --unsafe-perm: it has done nothing since npm 7, and npm already warns
+  # that unknown flags will be a hard error in the next major version.
+  sudo npm install -g signalk-server
 else
   log "Signal K server already installed"
 fi
