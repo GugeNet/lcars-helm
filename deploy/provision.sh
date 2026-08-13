@@ -71,8 +71,20 @@ log() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 
 log "Installing system packages"
 sudo apt-get update -qq
-sudo apt-get install -y --no-install-recommends \
-  ca-certificates curl git jq chromium unclutter
+# jq and curl are not optional: the updater cannot read a release without them.
+sudo apt-get install -y --no-install-recommends ca-certificates curl git jq
+
+if [[ "$SKIP_KIOSK" == "no" ]]; then
+  # Raspberry Pi OS calls it `chromium`; plain Debian and older images use
+  # `chromium-browser`. Try each rather than assuming.
+  if ! sudo apt-get install -y --no-install-recommends chromium 2>/dev/null; then
+    sudo apt-get install -y --no-install-recommends chromium-browser \
+      || { echo "could not install Chromium; re-run with --no-kiosk if this Pi has no display" >&2; exit 1; }
+  fi
+  # Cursor hiding is X11-only and simply does nothing under Wayland, so a
+  # failure here is not worth stopping for.
+  sudo apt-get install -y --no-install-recommends unclutter 2>/dev/null || true
+fi
 
 # --------------------------------------------------------------- node.js ----
 
@@ -107,13 +119,18 @@ if [[ ! -f "$SK_DIR/package.json" ]]; then
 EOF
 fi
 
+# Installed one at a time and without `set -e` aborting the run: a plugin that
+# fails to install is worth reporting, but it should not leave the Pi
+# half-provisioned with no display and no services.
 log "Installing Signal K plugins"
-(
-  cd "$SK_DIR"
-  npm install --no-audit --no-fund \
-    signalk-venus-plugin \
-    @signalk/signalk-derived-data
-)
+for plugin in signalk-venus-plugin signalk-derived-data; do
+  if ( cd "$SK_DIR" && npm install --no-audit --no-fund "$plugin" >/dev/null 2>&1 ); then
+    echo "    installed $plugin"
+  else
+    echo "    WARNING: could not install $plugin — the rest will continue" >&2
+    PLUGIN_FAILURES="${PLUGIN_FAILURES:-}${PLUGIN_FAILURES:+, }$plugin"
+  fi
+done
 
 # ------------------------------------------------------- signal k config ----
 
@@ -269,6 +286,12 @@ $(log "Done")
   journalctl -u lcars-update -f
 
 EOF
+
+if [[ -n "${PLUGIN_FAILURES:-}" ]]; then
+  echo "  WARNING: these plugins did not install: ${PLUGIN_FAILURES}"
+  echo "           Install them from the Signal K admin UI, or re-run this script."
+  echo
+fi
 
 if [[ "$SKIP_KIOSK" == "no" ]]; then
   echo "  Reboot to start the kiosk display."
