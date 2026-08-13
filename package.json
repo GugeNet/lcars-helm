@@ -12,9 +12,10 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "sim": "npm run start -w @lcars-helm/simulator",
-    "dev:sim": "npm run dev -w @lcars-helm/simulator",
-    "dev:web": "npm run dev -w lcars-helm",
+    "$comment:sim": "Run tsx directly rather than delegating to the workspace script: `npm run x -w y -- --flag` does not forward the flag, npm swallows it as its own config, so `npm run dev:sim -- --scenario anchored` would silently start the default scenario.",
+    "sim": "tsx simulator/src/index.ts",
+    "dev:sim": "tsx watch simulator/src/index.ts",
+    "dev:web": "npm run dev --prefix webapp",
     "setup:signalk": "node scripts/setup-dev-signalk.mjs",
     "dev:signalk": "node scripts/setup-dev-signalk.mjs && node scripts/dev-signalk.mjs"
   },

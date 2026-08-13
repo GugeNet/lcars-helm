@@ -58,10 +58,21 @@ The Victron side needs the plugin installed once into that config directory:
 npm --prefix .signalk-dev install signalk-venus-plugin
 ```
 
+Then open <http://localhost:5173>. The Vite dev server proxies `/signalk` through to
+the server on port 3000, so the app behaves exactly as it does on the boat while
+still hot-reloading.
+
+To see what the boat actually gets — the packed release served by Signal K itself —
+build and install it, then open <http://localhost:3000/lcars-helm/>:
+
+```bash
+npm run build && npm pack --workspace lcars-helm --pack-destination dist && npm --prefix .signalk-dev install --no-save ../dist/lcars-helm-0.1.0.tgz
+```
+
 ### The simulator
 
 ```bash
-npm run dev:sim -- --scenario anchored --speed 10
+npm run sim -- --scenario anchored --speed 10
 ```
 
 It impersonates both pieces of hardware at once. It serves Yacht Devices RAW frames
