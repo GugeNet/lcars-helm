@@ -1,0 +1,505 @@
+/*
+ * The LCARS design system: palette, metrics and the shapes everything else is
+ * assembled from.
+ *
+ * The display is a 7" touch screen at the nav station, read at arm's length in
+ * anything from bright sun to darkness, often by someone holding on with one
+ * hand. That drives most of the decisions here: very large numerals, generous
+ * touch targets, and colour used to distinguish situations rather than to
+ * decorate.
+ */
+
+@font-face {
+  font-family: 'Antonio';
+  src: url('../fonts/antonio-latin.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Antonio';
+  src: url('../fonts/antonio-latin-ext.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113;
+}
+
+:root {
+  /* The LCARS palette. Named for the colours themselves so that the semantic
+     assignments below can be re-pointed without renaming anything. */
+  --lcars-orange: #ff9c00;
+  --lcars-sunflower: #ffcc66;
+  --lcars-butterscotch: #ff9966;
+  --lcars-gold: #ffcc00;
+  --lcars-lilac: #cc99cc;
+  --lcars-periwinkle: #9999ff;
+  --lcars-ice: #99ccff;
+  --lcars-mars: #cc6666;
+  --lcars-red: #ff4444;
+  --lcars-grey: #6688aa;
+  --lcars-black: #000000;
+
+  /* Semantic roles. `--lcars-accent` is re-pointed per situation, which is what
+     gives each dashboard its own identity without restyling every widget. */
+  --lcars-accent: var(--lcars-orange);
+  --lcars-accent-dim: var(--lcars-butterscotch);
+  --lcars-bg: var(--lcars-black);
+  --lcars-text: var(--lcars-sunflower);
+  --lcars-label: var(--lcars-periwinkle);
+  --lcars-value: #ffffff;
+  --lcars-warn: var(--lcars-gold);
+  --lcars-alarm: var(--lcars-red);
+  --lcars-inactive: var(--lcars-grey);
+
+  /* Metrics, sized for the 800x480 panel; the media query below scales them up
+     for the larger 7" display and for a desktop browser during development. */
+  --lcars-rail: 96px;
+  --lcars-bar: 40px;
+  --lcars-corner: 128px;
+  --lcars-gap: 6px;
+  --lcars-radius: 999px;
+  --lcars-pad: 10px;
+
+  --lcars-font: 'Antonio', 'Oswald', 'Yanone Kaffeesatz', 'Arial Narrow', sans-serif;
+  --lcars-size-label: 13px;
+  --lcars-size-unit: 14px;
+  --lcars-size-body: 17px;
+  --lcars-size-value: 46px;
+  --lcars-size-hero: 78px;
+  --lcars-size-title: 24px;
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --lcars-rail: 140px;
+    --lcars-bar: 54px;
+    --lcars-corner: 180px;
+    --lcars-gap: 8px;
+    --lcars-pad: 14px;
+
+    --lcars-size-label: 17px;
+    --lcars-size-unit: 19px;
+    --lcars-size-body: 23px;
+    --lcars-size-value: 66px;
+    --lcars-size-hero: 116px;
+    --lcars-size-title: 34px;
+  }
+}
+
+/* Situation accents. Each dashboard sets one of these on the frame, and every
+   piece of chrome inside follows. */
+.lcars-situation--cruising {
+  --lcars-accent: var(--lcars-orange);
+  --lcars-accent-dim: var(--lcars-butterscotch);
+}
+.lcars-situation--motoring {
+  --lcars-accent: var(--lcars-gold);
+  --lcars-accent-dim: var(--lcars-sunflower);
+}
+.lcars-situation--racing {
+  --lcars-accent: var(--lcars-ice);
+  --lcars-accent-dim: var(--lcars-periwinkle);
+}
+.lcars-situation--anchored {
+  --lcars-accent: var(--lcars-lilac);
+  --lcars-accent-dim: var(--lcars-periwinkle);
+}
+.lcars-situation--marina {
+  --lcars-accent: var(--lcars-periwinkle);
+  --lcars-accent-dim: var(--lcars-ice);
+}
+
+/* ---------------------------------------------------------------- frame --- */
+
+.lcars-frame {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background: var(--lcars-bg);
+  font-family: var(--lcars-font);
+  padding: calc(var(--lcars-bar) + var(--lcars-gap)) 0 0
+    calc(var(--lcars-rail) + var(--lcars-gap));
+  overflow: hidden;
+}
+
+/*
+ * The elbow. A box with a thick left border, a thick top border and a large
+ * outer corner radius renders exactly the LCARS corner — the browser draws the
+ * concave inner curve where the two borders meet, at any size, with no images.
+ */
+.lcars-elbow {
+  position: absolute;
+  width: var(--lcars-corner);
+  height: var(--lcars-corner);
+  border-style: solid;
+  border-color: var(--lcars-accent);
+  border-width: 0;
+  pointer-events: none;
+}
+
+.lcars-elbow--top-left {
+  top: 0;
+  left: 0;
+  border-top-width: var(--lcars-bar);
+  border-left-width: var(--lcars-rail);
+  border-top-left-radius: var(--lcars-corner);
+}
+
+.lcars-elbow--bottom-left {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: var(--lcars-bar);
+  border-left-width: var(--lcars-rail);
+  border-bottom-left-radius: var(--lcars-corner);
+}
+
+/* The rail runs between the two elbows, holding the situation buttons. */
+.lcars-rail {
+  position: absolute;
+  left: 0;
+  top: calc(var(--lcars-corner) + var(--lcars-gap));
+  bottom: calc(var(--lcars-corner) + var(--lcars-gap));
+  width: var(--lcars-rail);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lcars-gap);
+}
+
+.lcars-header,
+.lcars-footer {
+  position: absolute;
+  left: calc(var(--lcars-corner) + var(--lcars-gap));
+  right: 0;
+  height: var(--lcars-bar);
+  display: flex;
+  align-items: stretch;
+  gap: var(--lcars-gap);
+}
+
+.lcars-header {
+  top: 0;
+}
+
+.lcars-footer {
+  bottom: 0;
+}
+
+/* The bar's own colour block, with the rounded cap that ends every LCARS bar. */
+.lcars-bar-segment {
+  background: var(--lcars-accent);
+  border-radius: 0;
+  flex: 0 0 auto;
+}
+
+.lcars-bar-segment--cap {
+  flex: 1 1 auto;
+  border-top-right-radius: var(--lcars-radius);
+  border-bottom-right-radius: var(--lcars-radius);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: calc(var(--lcars-bar) * 0.5);
+  color: var(--lcars-bg);
+  font-size: var(--lcars-size-title);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lcars-content {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  padding: var(--lcars-gap) 0 calc(var(--lcars-bar) + var(--lcars-gap) * 2) var(--lcars-gap);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------- button --- */
+
+.lcars-button {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font-family: inherit;
+  background: var(--lcars-accent-dim);
+  color: var(--lcars-bg);
+  border-radius: var(--lcars-radius);
+  padding: var(--lcars-pad) calc(var(--lcars-pad) * 1.4);
+  font-size: var(--lcars-size-label);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
+  cursor: pointer;
+  /* A finger on a moving boat needs a target it cannot miss. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transition: background-color 120ms linear, color 120ms linear;
+}
+
+.lcars-button:disabled {
+  background: var(--lcars-inactive);
+  cursor: default;
+}
+
+.lcars-button--selected {
+  background: var(--lcars-accent);
+  color: var(--lcars-bg);
+}
+
+.lcars-button--rail {
+  flex: 1 1 0;
+  text-align: right;
+  padding-right: var(--lcars-pad);
+  font-size: var(--lcars-size-label);
+  line-height: 1;
+}
+
+.lcars-button--alarm {
+  background: var(--lcars-alarm);
+  color: #ffffff;
+}
+
+.lcars-button:active {
+  filter: brightness(1.35);
+}
+
+/* ---------------------------------------------------------------- panel --- */
+
+.lcars-panel {
+  position: relative;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* Fill the grid cell, so the graph inside gets the whole row rather than
+     collapsing onto its own minimum height. */
+  height: 100%;
+}
+
+/* The short colour stub that heads each LCARS block. */
+.lcars-panel__title {
+  color: var(--lcars-label);
+  font-size: var(--lcars-size-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lcars-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Anchor for graphics that fill the panel; see .lcars-trend. */
+  position: relative;
+}
+
+/* -------------------------------------------------------------- readout --- */
+
+.lcars-readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.lcars-readout__label {
+  color: var(--lcars-label);
+  font-size: var(--lcars-size-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.lcars-readout__value {
+  color: var(--lcars-value);
+  font-size: var(--lcars-size-value);
+  font-weight: 400;
+  line-height: 0.92;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.lcars-readout--hero .lcars-readout__value {
+  font-size: var(--lcars-size-hero);
+}
+
+.lcars-readout__unit {
+  color: var(--lcars-accent);
+  font-size: var(--lcars-size-unit);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 0.35em;
+}
+
+.lcars-readout--warn .lcars-readout__value {
+  color: var(--lcars-warn);
+}
+
+.lcars-readout--alarm .lcars-readout__value {
+  color: var(--lcars-alarm);
+}
+
+.lcars-readout--stale .lcars-readout__value {
+  color: var(--lcars-inactive);
+}
+
+/* ---------------------------------------------------------------- gauge --- */
+
+.lcars-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lcars-gauge__track {
+  position: relative;
+  height: 14px;
+  background: #1a1a1a;
+  border-radius: var(--lcars-radius);
+  overflow: hidden;
+}
+
+.lcars-gauge__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--lcars-accent);
+  border-radius: var(--lcars-radius);
+  transition: width 200ms linear;
+}
+
+.lcars-gauge--warn .lcars-gauge__fill {
+  background: var(--lcars-warn);
+}
+
+.lcars-gauge--alarm .lcars-gauge__fill {
+  background: var(--lcars-alarm);
+}
+
+/* ---------------------------------------------------------------- alert --- */
+
+.lcars-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--lcars-pad);
+  background: var(--lcars-accent);
+  color: var(--lcars-bg);
+  border-radius: var(--lcars-radius);
+  padding: var(--lcars-pad) calc(var(--lcars-pad) * 1.5);
+  font-size: var(--lcars-size-body);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lcars-alert--alarm {
+  background: var(--lcars-alarm);
+  color: #ffffff;
+  animation: lcars-alert-pulse 1.1s steps(1, end) infinite;
+}
+
+.lcars-alert__message {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lcars-alert__actions {
+  display: flex;
+  gap: var(--lcars-gap);
+  flex: 0 0 auto;
+}
+
+.lcars-alert .lcars-button {
+  background: var(--lcars-bg);
+  color: var(--lcars-accent);
+  min-height: 36px;
+  padding: 4px 14px;
+}
+
+.lcars-alert--alarm .lcars-button {
+  color: var(--lcars-alarm);
+}
+
+@keyframes lcars-alert-pulse {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.55;
+  }
+}
+
+/* A boat at night should not be lit up by its own instruments; and anyone who
+   gets motion sick reading a flashing screen is better served by it holding
+   still. Both are respected here. */
+@media (prefers-reduced-motion: reduce) {
+  .lcars-alert--alarm {
+    animation: none;
+  }
+  .lcars-gauge__fill {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- trend --- */
+
+/*
+ * Positioned rather than sized in percentages: an SVG with a square viewBox
+ * inside a flex column has no definite height to resolve `height: 100%`
+ * against, so it falls back to its intrinsic aspect ratio and renders square,
+ * bursting out of the strip it is meant to fill.
+ */
+.lcars-trend {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lcars-trend__line {
+  fill: none;
+  stroke: var(--lcars-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.lcars-trend__area {
+  fill: var(--lcars-accent);
+  opacity: 0.16;
+}
+
+.lcars-trend__axis {
+  stroke: var(--lcars-inactive);
+  stroke-width: 1;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}

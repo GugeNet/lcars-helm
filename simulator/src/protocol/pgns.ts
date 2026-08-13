@@ -237,6 +237,18 @@ const windEmitter: PgnEmitter = {
         reference: WindReference.TrueboatReferenced
       }),
       SOURCE_ADDRESSES.wind
+    ),
+    // Ground-referenced true wind. Not every masthead unit computes this, but
+    // the ones that do give Signal K `environment.wind.directionTrue` directly,
+    // which is what the anchored dashboard plots the wind shift from.
+    withSource(
+      new PGN_130306({
+        sid,
+        windSpeed: state.wind.speedTrue,
+        windAngle: normalizeAngle(state.wind.directionTrue),
+        reference: WindReference.TruegroundReferencedToNorth
+      }),
+      SOURCE_ADDRESSES.wind
     )
   ]
 }

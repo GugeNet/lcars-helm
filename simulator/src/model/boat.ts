@@ -1,6 +1,6 @@
 import { DEFAULT_POLAR, IRONS_ANGLE, polarSpeed, type PolarTable } from './polars.js'
 import { apparentWind, type TrueWind } from './wind.js'
-import { moveAlong, type LatLon } from './geo.js'
+import { bearingTo, distanceBetween, moveAlong, type LatLon } from './geo.js'
 import {
   angleDifference,
   approach,
@@ -43,6 +43,15 @@ export interface BoatConfig {
   /** Longitudinal acceleration limit, m/s². */
   surgeAcceleration: number
 }
+
+/** Fastest the boat surges up or down its rode, m/s. */
+const ANCHOR_SURGE_RATE = 0.18
+/**
+ * Fastest the boat travels sideways while swinging, m/s. Limiting the speed
+ * rather than the angle of swing keeps the motion realistic at any scope — the
+ * same angular rate is gentle on a short rode and violent on a long one.
+ */
+const ANCHOR_SWING_SPEED = 0.35
 
 export const DEFAULT_BOAT: BoatConfig = {
   polar: DEFAULT_POLAR,
@@ -95,6 +104,9 @@ export class BoatModel {
   private wavePhase = 0
   /** Slow oscillation of the bow while lying to an anchor. */
   private anchorYawPhase = 0
+  /** Lagged distance from and bearing off the anchor; null until first used. */
+  private anchorRadius: number | null = null
+  private anchorBearing: number | null = null
 
   constructor(config: BoatConfig, start: LatLon, heading: number, initialLog = 0) {
     this.config = config
@@ -139,6 +151,8 @@ export class BoatModel {
     this.rateOfTurn = 0
     this.heel = 0
     this.leeway = 0
+    this.anchorRadius = null
+    this.anchorBearing = null
   }
 
   update(
@@ -282,11 +296,36 @@ export class BoatModel {
     const horizontalScope = Math.sqrt(Math.max(0, anchor.rodeLength ** 2 - depth ** 2))
     // Stronger wind pulls the rode straighter and damps the sheering.
     const windFactor = clamp(trueWind.speed / knots(20), 0.55, 1)
-    const radius = horizontalScope * windFactor
-
     const sheer = Math.sin(this.anchorYawPhase) * degrees(28) * (1.2 - windFactor)
     const downwind = normalizeAngle(trueWind.direction + Math.PI)
-    const bearingFromAnchor = normalizeAngle(downwind + sheer)
+
+    const targetRadius = horizontalScope * windFactor
+    const targetBearing = normalizeAngle(downwind + sheer)
+
+    // A boat on a rode has inertia. Without these lags every gust would haul it
+    // bodily up and down its scope, and a wind shift would teleport it around
+    // the anchor — both of which read as absurd speeds over ground.
+    const lastRadius = this.anchorRadius
+    const lastBearing = this.anchorBearing
+
+    let radius: number
+    let bearingFromAnchor: number
+    if (lastRadius === null || lastBearing === null) {
+      // First tick: the boat is placed onto its rode from wherever the scenario
+      // started it. That placement is not motion, and reporting it as speed
+      // over ground would show a boat at anchor doing several hundred knots.
+      radius = targetRadius
+      bearingFromAnchor = targetBearing
+    } else {
+      radius = approach(lastRadius, targetRadius, ANCHOR_SURGE_RATE * dt)
+      const maxSwing = (ANCHOR_SWING_SPEED / Math.max(radius, 1)) * dt
+      bearingFromAnchor = normalizeAngle(
+        lastBearing + clamp(angleDifference(lastBearing, targetBearing), -maxSwing, maxSwing)
+      )
+    }
+    const placing = lastRadius === null
+    this.anchorRadius = radius
+    this.anchorBearing = bearingFromAnchor
 
     const previous = this.position
     this.position = moveAlong(anchor.position!, bearingFromAnchor, radius)
@@ -299,13 +338,9 @@ export class BoatModel {
 
     // The boat is not moving through the water, but it does move over the ground
     // as it sheers, and that is what the anchor watch sees.
-    const travelled = Math.hypot(
-      (this.position.latitude - previous.latitude) * 111320,
-      (this.position.longitude - previous.longitude) *
-        111320 *
-        Math.cos((this.position.latitude * Math.PI) / 180)
-    )
+    const travelled = placing ? 0 : distanceBetween(previous, this.position)
     this.sog = dt > 0 ? travelled / dt : 0
+    if (travelled > 0.01) this.cog = bearingTo(previous, this.position)
     this.stw = 0
     this.heel = Math.sin(this.wavePhase * 0.5) * degrees(2)
     this.pitch = Math.sin(this.wavePhase) * degrees(1.5)

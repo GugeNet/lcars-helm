@@ -1,5 +1,5 @@
 import { createRng, OrnsteinUhlenbeck, type Rng } from './rng.js'
-import { normalizeAngle, normalizeSigned, TWO_PI } from './units.js'
+import { clamp, normalizeAngle, normalizeSigned, TWO_PI } from './units.js'
 
 export interface WindModelConfig {
   /** Mean direction the wind blows from, radians true. */
@@ -76,11 +76,14 @@ export class WindModel {
     const wander = this.wander.update(dt)
     const gustFraction = this.gust.update(dt)
 
+    // Gusts are asymmetric — they reach further above the mean than lulls reach
+    // below it — but bounded. Left unbounded, a windy scenario's tail produces
+    // gusts at twice the mean, which no anemometer on a real boat ever sees.
+    const gustFactor = clamp(1 + gustFraction + Math.max(0, gustFraction) * 0.5, 0.5, 1.6)
+
     return {
       direction: normalizeAngle(baseDirection + oscillation + wander),
-      // Gusts are asymmetric: a lull cannot take the wind below zero, and gusts
-      // reach further above the mean than lulls reach below it.
-      speed: Math.max(0, baseSpeed * (1 + gustFraction + Math.max(0, gustFraction) * 0.5))
+      speed: Math.max(0, baseSpeed * gustFactor)
     }
   }
 }

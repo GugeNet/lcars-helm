@@ -1,0 +1,171 @@
+/*
+ * Dashboard layouts. Each situation gets its own grid, sized so that the
+ * numbers that matter for that situation are the biggest things on the screen
+ * and everything fits on an 800x480 panel without scrolling.
+ */
+
+.dash-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lcars-gap);
+  min-height: 0;
+}
+
+.dash-wrap > .lcars-alert {
+  flex: 0 0 auto;
+}
+
+.dash {
+  flex: 1 1 auto;
+  display: grid;
+  gap: var(--lcars-gap) calc(var(--lcars-gap) * 2);
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Every cell is a block of its own; the vertical stripe on the left edge is
+   what makes a group of numbers read as an LCARS panel rather than a table. */
+.dash > * {
+  padding-left: calc(var(--lcars-pad) * 0.8);
+  border-left: 3px solid var(--lcars-accent-dim);
+  min-width: 0;
+  min-height: 0;
+}
+
+.dash > .dash-cell--plain {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.dash-cell--wide {
+  grid-column: span 2;
+}
+
+.dash-cell--tall {
+  grid-row: span 2;
+}
+
+/* The single most important number in each situation gets the hero treatment
+   and its own accent-coloured edge. */
+.dash-cell--hero {
+  border-left-color: var(--lcars-accent);
+  border-left-width: 6px;
+}
+
+.dash--cruising {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1.7fr 1fr 1fr;
+}
+
+.dash--motoring {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1.7fr 1fr 1fr;
+}
+
+.dash--racing {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1.7fr 1fr 1fr;
+}
+
+/* The plot needs a column of its own for the full height; the numbers stack
+   beside it and the wind trend runs along the bottom. */
+.dash--anchored {
+  grid-template-columns: 1.15fr 1fr 1fr 1.45fr;
+  grid-template-rows: 1.6fr 1fr 1fr;
+  grid-template-areas:
+    'dist  dist  wind  plot'
+    'dir   depth soc   plot'
+    'trend trend trend plot';
+}
+
+.dash--marina {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1.4fr 1fr 1fr;
+}
+
+/* A panel whose body is a trend graph needs to give it the room to draw in. */
+.dash-trend .lcars-panel__body {
+  min-height: 24px;
+}
+
+/* ------------------------------------------------------------ anchor plot --- */
+
+/* Wrapper gives the plot a definite box to fill; the SVG would otherwise fall
+   back to its square viewBox aspect ratio, the same trap as .lcars-trend. */
+.anchor-plot__frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.anchor-plot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.anchor-plot__alarm-circle {
+  fill: none;
+  stroke: var(--lcars-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.anchor-plot__alarm-circle--breached {
+  stroke: var(--lcars-alarm);
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+.anchor-plot__track {
+  fill: none;
+  stroke: var(--lcars-accent-dim);
+  stroke-width: 1.5;
+  opacity: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.anchor-plot__anchor {
+  fill: var(--lcars-accent);
+}
+
+.anchor-plot__boat {
+  fill: var(--lcars-value);
+}
+
+.anchor-plot__boat--breached {
+  fill: var(--lcars-alarm);
+}
+
+.anchor-plot__rode {
+  stroke: var(--lcars-inactive);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------------------------------------------------------- status line --- */
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 1.4em;
+  white-space: nowrap;
+}
+
+.status-line__item {
+  font-size: var(--lcars-size-label);
+  letter-spacing: 0.1em;
+}
+
+.status-line__item--fault {
+  /* On the accent-coloured footer bar, black-on-red would vanish; invert. */
+  background: var(--lcars-alarm);
+  color: #ffffff;
+  padding: 0 0.6em;
+  border-radius: var(--lcars-radius);
+}

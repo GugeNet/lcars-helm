@@ -111,6 +111,34 @@ describe('simulation', () => {
     expect(Math.abs(toDegrees(normalizeSigned(state.wind.angleTrue)))).toBeLessThan(45)
   })
 
+  it('keeps a sane speed over ground at anchor, even through a wind shift', () => {
+    const simulation = new Simulation(createScenario('anchored'))
+    let peak = 0
+
+    // Run past the veer at t=480 s and the build at t=900 s, but stop before the
+    // anchor starts dragging at t=1320 s.
+    for (let t = 0; t < 12_000; t += 1) {
+      simulation.tick(0.1)
+      peak = Math.max(peak, simulation.current.sog)
+    }
+
+    // A boat sheering about on its rode makes well under a knot over ground.
+    // Anything more means the model is teleporting it around the anchor.
+    expect(peak).toBeLessThan(knots(1.2))
+  })
+
+  it('reports a course over ground while sheering at anchor', () => {
+    const simulation = new Simulation(createScenario('anchored'))
+    const courses = new Set<number>()
+    for (let t = 0; t < 3000; t += 1) {
+      simulation.tick(0.2)
+      courses.add(Math.round(toDegrees(simulation.current.cog)))
+    }
+    // The boat swings both ways, so COG must actually vary rather than stick at
+    // whatever it was when the scenario loaded.
+    expect(courses.size).toBeGreaterThan(5)
+  })
+
   it('drags the anchor once the scripted event fires', () => {
     const simulation = new Simulation(createScenario('anchored'))
     // Step in one-second ticks past the drag event at t=1320 s.

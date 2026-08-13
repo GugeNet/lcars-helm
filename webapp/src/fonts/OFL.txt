@@ -1,0 +1,13 @@
+The Antonio font bundled here (antonio-latin.woff2, antonio-latin-ext.woff2)
+is Copyright (c) The Antonio Project Authors (https://github.com/vernnobile/AntonioFont)
+and is licensed under the SIL Open Font License, Version 1.1.
+
+The full licence text is available at https://openfontlicense.org and is
+reproduced in the upstream project. In brief, the OFL permits the font to be
+used, studied, modified and redistributed freely, including bundled with
+software such as this one, provided the font itself is not sold on its own and
+any modified version is not released under the reserved font name.
+
+Antonio is bundled rather than loaded from a font CDN because the display runs
+in a kiosk on a boat, where the internet connection is a 4G link that cannot be
+relied upon at the moment the screen is drawn.

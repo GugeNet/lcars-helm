@@ -1,51 +1,90 @@
-import { bearing, celsius, knots, metres, relativeAngle } from './format.js'
-import { useConnection, useNumbers } from './store/vesselStore.js'
+import { useEffect, useState, type ReactNode } from 'react'
+import { AlertBanner, LcarsFrame, PillButton } from './lcars/index.js'
+import { Dashboard } from './dashboards/index.js'
+import { clockTime } from './format.js'
+import { useAlarmSound, useTopAlert } from './alerts.js'
+import { useAnchorTrackRecorder } from './situations/anchorStore.js'
+import { useActiveSituation, useSituationStore, useSituationWatcher } from './situations/store.js'
+import { SITUATIONS, situationDefinition } from './situations/types.js'
+import { useConnection } from './store/vesselStore.js'
 
-const WATCHED = [
-  'headingTrue',
-  'courseOverGround',
-  'speedOverGround',
-  'speedThroughWater',
-  'windAngleApparent',
-  'windSpeedApparent',
-  'windSpeedTrue',
-  'depthBelowTransducer',
-  'waterTemperature'
-] as const
+/** Ticks once a minute so the footer clock stays honest. */
+function useMinuteClock(): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 20_000)
+    return () => clearInterval(timer)
+  }, [])
+  return now
+}
 
-/**
- * A plain readout of the live Signal K values. The LCARS interface proper is
- * built on top of this data layer; this view exists so the connection can be
- * checked on its own.
- */
-export function App(): JSX.Element {
+function StatusLine({ situationFocus }: { situationFocus: string }): ReactNode {
   const connection = useConnection()
-  const values = useNumbers(WATCHED)
-
-  const rows: [string, string][] = [
-    ['Heading', `${bearing(values.headingTrue)}°`],
-    ['COG', `${bearing(values.courseOverGround)}°`],
-    ['SOG', `${knots(values.speedOverGround)} kn`],
-    ['STW', `${knots(values.speedThroughWater)} kn`],
-    ['AWA', relativeAngle(values.windAngleApparent)],
-    ['AWS', `${knots(values.windSpeedApparent)} kn`],
-    ['TWS', `${knots(values.windSpeedTrue)} kn`],
-    ['Depth', `${metres(values.depthBelowTransducer)} m`],
-    ['Water', `${celsius(values.waterTemperature)} °C`]
-  ]
+  const now = useMinuteClock()
 
   return (
-    <main style={{ padding: '2rem', fontSize: '1.5rem' }}>
-      <h1 style={{ letterSpacing: '0.2em' }}>LCARS HELM</h1>
-      <p>Signal K: {connection}</p>
-      <dl style={{ display: 'grid', gridTemplateColumns: 'max-content max-content', gap: '0.5rem 2rem' }}>
-        {rows.map(([label, value]) => (
-          <div key={label} style={{ display: 'contents' }}>
-            <dt>{label}</dt>
-            <dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </main>
+    <span className="status-line">
+      {connection !== 'open' ? (
+        <span className="status-line__item status-line__item--fault">
+          {connection === 'connecting' ? 'Linking' : 'No data'}
+        </span>
+      ) : (
+        <span className="status-line__item">{situationFocus}</span>
+      )}
+      <span className="status-line__item">{clockTime(now)}</span>
+    </span>
+  )
+}
+
+export function App(): ReactNode {
+  useSituationWatcher()
+  useAnchorTrackRecorder()
+
+  const active = useActiveSituation()
+  const definition = situationDefinition(active)
+  const setActive = useSituationStore((state) => state.setActive)
+  const suggestion = useSituationStore((state) => state.suggestion)
+  const acceptSuggestion = useSituationStore((state) => state.accept)
+  const dismissSuggestion = useSituationStore((state) => state.dismiss)
+
+  const alert = useTopAlert(active)
+  useAlarmSound(alert?.alarm === true)
+
+  // An alarm always wins the banner; a suggestion only appears when nothing is
+  // wrong, because being asked a question during an emergency is no help.
+  const banner: ReactNode = alert ? (
+    <AlertBanner key={alert.key} message={alert.message} alarm={alert.alarm} actions={alert.actions} />
+  ) : suggestion ? (
+    <AlertBanner
+      key="suggestion"
+      message={`Looks like ${situationDefinition(suggestion.situation).short.toLowerCase()} — ${suggestion.reason}`}
+      actions={[
+        { label: 'Switch', onClick: acceptSuggestion },
+        { label: 'Stay', onClick: dismissSuggestion }
+      ]}
+    />
+  ) : null
+
+  return (
+    <LcarsFrame
+      situation={active}
+      title={definition.title}
+      rail={SITUATIONS.map((entry) => (
+        <PillButton
+          key={entry.id}
+          rail
+          selected={entry.id === active}
+          onClick={() => setActive(entry.id)}
+        >
+          {entry.short}
+        </PillButton>
+      ))}
+      footer={<StatusLine situationFocus={definition.focus} />}
+    >
+      <div className="dash-wrap">
+        {banner}
+        <Dashboard situation={active} />
+      </div>
+    </LcarsFrame>
   )
 }
