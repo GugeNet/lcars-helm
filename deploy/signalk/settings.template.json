@@ -15,7 +15,9 @@
             "subOptions": {
               "type": "ydwg02-canboatjs",
               "host": "__YDWG_HOST__",
-              "port": __YDWG_PORT__
+              "port": __YDWG_PORT__,
+              "$comment": "Seconds of silence before the socket is treated as dead and reopened. The default is 60, which is a long time to stare at frozen instruments: when the boat's WiFi drops, TCP does not notice, so Signal K holds a half-open socket until this fires. A live NMEA 2000 bus produces traffic several times a second, so 20 seconds is far longer than any real gap while still recovering quickly. Reconnection itself then backs off to at most 5 seconds.",
+              "noDataReceivedTimeout": 20
             }
           }
         }
