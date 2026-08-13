@@ -1,0 +1,24 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #000;
+  color: #ff9c00;
+  font-family: 'Antonio', 'Oswald', 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* The display is a fixed-size touch screen in a kiosk; nothing here should be
+   selectable or draggable by a stray thumb on the helm. */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}

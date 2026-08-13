@@ -1,0 +1,29 @@
+{
+  "name": "@lcars-helm/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protocol-level sailboat simulator: emulates a Yacht Devices YDWG-02 NMEA 2000 gateway and a Victron Cerbo GX",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lcars-sim": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@canboat/canboatjs": "^3.20.0",
+    "aedes": "^0.51.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

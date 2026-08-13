@@ -1,0 +1,25 @@
+{
+  "$comment": "Signal K server settings for lcars-helm. Placeholders are replaced by deploy/provision.sh on the Pi and by scripts/setup-dev-signalk.mjs during development. The two differ only in the host names, so what runs on the bench is what runs on the boat.",
+  "interfaces": {},
+  "ssl": false,
+  "pipedProviders": [
+    {
+      "id": "ydwg-02",
+      "enabled": true,
+      "pipeElements": [
+        {
+          "type": "providers/simple",
+          "options": {
+            "logging": false,
+            "type": "NMEA2000",
+            "subOptions": {
+              "type": "ydwg02-canboatjs",
+              "host": "__YDWG_HOST__",
+              "port": __YDWG_PORT__
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
