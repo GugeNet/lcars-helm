@@ -3,22 +3,59 @@
 Everything needed to turn a Raspberry Pi into the nav station display, and to
 keep it up to date afterwards without anyone touching it.
 
+## The access token
+
+The repository is private, so the Pi needs a token to read releases. Create a
+**fine-grained personal access token** at
+<https://github.com/settings/personal-access-tokens> with:
+
+- **Repository access** — only `GugeNet/lcars-helm`
+- **Permissions** — `Contents: Read-only`
+
+That is the whole scope needed: read the release list and download its assets.
+Nothing that token can do would let anyone change the repository.
+
+Give it to `provision.sh` once and it is stored in `/etc/lcars-helm.env`, owned
+by root and readable only by root, which systemd reads before dropping to the
+normal user. It never appears in the unit file or in shell history.
+
+Fine-grained tokens expire. When one does, the updater stops with a loud error
+in the journal rather than failing quietly — but the boat will not update until
+it is replaced:
+
+```bash
+sudo install -m 600 -o root -g root /dev/null /etc/lcars-helm.env
+echo 'LCARS_GITHUB_TOKEN=github_pat_...' | sudo tee /etc/lcars-helm.env >/dev/null
+sudo systemctl start lcars-update.service
+```
+
+Set a calendar reminder for a week before the expiry date, or use a token with
+no expiry if the Pi is the only thing holding it.
+
 ## Provisioning a Pi
 
 Both the boat Pi and the spare on the bench are set up the same way; only the
 host names differ.
 
+Cloning a private repository on the Pi needs credentials too — the simplest is a
+one-off HTTPS clone using the same token:
+
 ```bash
-git clone https://github.com/OWNER/lcars-helm.git
+git clone https://github_pat_...@github.com/GugeNet/lcars-helm.git
 cd lcars-helm
-deploy/provision.sh --ydwg-host 192.168.1.50 --cerbo-host 192.168.1.51 --repo OWNER/lcars-helm
+deploy/provision.sh \
+  --ydwg-host 192.168.1.50 \
+  --cerbo-host 192.168.1.51 \
+  --github-token github_pat_...
 ```
 
 On the bench, point it at the machine running the simulator instead:
 
 ```bash
-deploy/provision.sh --ydwg-host 192.168.1.80 --cerbo-host 192.168.1.80
+deploy/provision.sh --ydwg-host 192.168.1.80 --cerbo-host 192.168.1.80 --github-token github_pat_...
 ```
+
+Re-running later without `--github-token` keeps the token already installed.
 
 The script installs Node, Signal K and its plugins, writes the Signal K
 configuration, installs the services, and sets up the Chromium kiosk. It is safe
@@ -59,6 +96,13 @@ publish otherwise.
 
 - It exits quietly when GitHub cannot be reached. A 4G link that drops mid-passage
   is normal, not an error.
+- It does **not** treat an authentication failure as a network failure. On a
+  private repository GitHub answers an unauthenticated request with `404`, which
+  would otherwise read as "no release yet" and silently stop updates for good.
+  A missing, expired or revoked token fails loudly instead, naming the cause.
+- Release assets are fetched through the API asset URL with an `octet-stream`
+  Accept header. The `browser_download_url` in the release JSON is a web-session
+  URL and a token will not open it on a private repository.
 - It refuses to install a release with no `SHA256SUMS`, or one whose checksum does
   not match. An interrupted download is far more likely than a malicious one, and
   both are handled the same way.

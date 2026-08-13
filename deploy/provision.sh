@@ -5,33 +5,39 @@
 # Run once per Pi. It is safe to run again: every step checks before it acts, so
 # re-running upgrades an existing installation rather than duplicating it.
 #
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/lcars-helm/master/deploy/provision.sh | bash -s -- --ydwg-host 192.168.1.50
+# The repository is private, so clone it with credentials that can read it and
+# run this from the clone:
 #
-# or, from a clone:
-#
-#   sudo -u "$USER" deploy/provision.sh --ydwg-host ydwg.local --cerbo-host cerbo.local
+#   git clone https://github.com/GugeNet/lcars-helm.git
+#   cd lcars-helm
+#   deploy/provision.sh --ydwg-host ydwg.local --cerbo-host cerbo.local \
+#     --github-token ghp_xxx
 #
 set -euo pipefail
 
-REPO="${LCARS_REPO:-OWNER/lcars-helm}"
+REPO="${LCARS_REPO:-GugeNet/lcars-helm}"
 YDWG_HOST="ydwg.local"
 YDWG_PORT="1457"
 CERBO_HOST="cerbo.local"
 CERBO_PORT="1883"
 NODE_MAJOR="22"
 SKIP_KIOSK="no"
+GITHUB_TOKEN="${LCARS_GITHUB_TOKEN:-}"
+ENV_FILE="/etc/lcars-helm.env"
 
 usage() {
   cat <<'EOF'
 Provision a Raspberry Pi for lcars-helm.
 
-  --ydwg-host <host>   Yacht Devices gateway (default ydwg.local)
-  --ydwg-port <port>   Gateway RAW TCP port (default 1457)
-  --cerbo-host <host>  Victron Cerbo GX (default cerbo.local)
-  --cerbo-port <port>  Cerbo MQTT port (default 1883)
-  --repo <owner/name>  GitHub repository to pull releases from
-  --no-kiosk           Install the server only, no display
-  -h, --help           This message
+  --ydwg-host <host>    Yacht Devices gateway (default ydwg.local)
+  --ydwg-port <port>    Gateway RAW TCP port (default 1457)
+  --cerbo-host <host>   Victron Cerbo GX (default cerbo.local)
+  --cerbo-port <port>   Cerbo MQTT port (default 1883)
+  --repo <owner/name>   GitHub repository to pull releases from
+  --github-token <tok>  Token for the private repository; may also be given as
+                        LCARS_GITHUB_TOKEN. Kept if already installed.
+  --no-kiosk            Install the server only, no display
+  -h, --help            This message
 EOF
 }
 
@@ -42,6 +48,7 @@ while [[ $# -gt 0 ]]; do
     --cerbo-host) CERBO_HOST="$2"; shift 2 ;;
     --cerbo-port) CERBO_PORT="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
+    --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
     --no-kiosk) SKIP_KIOSK="yes"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage; exit 1 ;;
@@ -164,6 +171,21 @@ EOF
 sudo chmod 0440 /etc/sudoers.d/lcars-helm
 sudo visudo -cf /etc/sudoers.d/lcars-helm >/dev/null
 
+# The GitHub token lives in a root-owned file that only systemd reads, so it
+# never appears in the unit file, in `systemctl show`, or in this user's shell
+# history. Re-running without --github-token keeps the token already installed.
+if [[ -n "$GITHUB_TOKEN" ]]; then
+  printf 'LCARS_GITHUB_TOKEN=%s\n' "$GITHUB_TOKEN" | sudo tee "$ENV_FILE" >/dev/null
+  sudo chown root:root "$ENV_FILE"
+  sudo chmod 0600 "$ENV_FILE"
+  echo "    stored the GitHub token in $ENV_FILE"
+elif sudo test -f "$ENV_FILE"; then
+  echo "    keeping the GitHub token already in $ENV_FILE"
+else
+  echo "    WARNING: no GitHub token supplied; automatic updates will fail" >&2
+  echo "             against a private repository. Re-run with --github-token." >&2
+fi
+
 sudo tee /etc/systemd/system/lcars-update.service >/dev/null <<EOF
 [Unit]
 Description=Check for and install lcars-helm releases
@@ -176,6 +198,9 @@ User=${USER_NAME}
 Environment=LCARS_REPO=${REPO}
 Environment=LCARS_SIGNALK_DIR=${SK_DIR}
 Environment=LCARS_STATE_DIR=${LCARS_DIR}
+# Leading dash: a missing file is not a startup failure, and the updater
+# reports a missing token far more clearly than systemd would.
+EnvironmentFile=-${ENV_FILE}
 ExecStart=/usr/local/bin/lcars-update
 EOF
 
@@ -220,9 +245,16 @@ fi
 
 # ---------------------------------------------------------------- install ---
 
+# Run it through systemd rather than directly, so this first install exercises
+# the exact unit — token file included — that the timer will use from now on.
 log "Installing the current release"
-LCARS_REPO="$REPO" LCARS_SIGNALK_DIR="$SK_DIR" LCARS_STATE_DIR="$LCARS_DIR" \
-  /usr/local/bin/lcars-update || echo "    no release installed yet; the timer will retry"
+if sudo systemctl start lcars-update.service; then
+  sudo journalctl -u lcars-update -n 15 --no-pager --output=cat | sed 's/^/    /'
+else
+  echo "    the first update run did not succeed:"
+  sudo journalctl -u lcars-update -n 15 --no-pager --output=cat | sed 's/^/    /'
+  echo "    the timer will retry every ten minutes"
+fi
 
 cat <<EOF
 
@@ -231,7 +263,7 @@ $(log "Done")
   Display:     http://localhost:3000/lcars-helm
   Gateway:     ${YDWG_HOST}:${YDWG_PORT}
   Cerbo:       ${CERBO_HOST}:${CERBO_PORT}
-  Releases:    ${REPO}
+  Releases:    ${REPO} (token in ${ENV_FILE})
 
   systemctl status signalk lcars-update.timer
   journalctl -u lcars-update -f
