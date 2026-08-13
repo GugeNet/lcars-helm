@@ -43,11 +43,26 @@ one-off HTTPS clone using the same token:
 ```bash
 git clone https://github_pat_...@github.com/GugeNet/lcars-helm.git
 cd lcars-helm
-deploy/provision.sh \
-  --ydwg-host 192.168.1.50 \
-  --cerbo-host 192.168.1.51 \
-  --github-token github_pat_...
+deploy/provision.sh --github-token github_pat_...
 ```
+
+On the boat that is usually the whole command. Both devices advertise themselves
+over mDNS, and the defaults use those names rather than addresses:
+
+| Device            | Default host  | Why                                                     |
+| ----------------- | ------------- | ------------------------------------------------------- |
+| Yacht Devices YDWG | `ydwg.local`  | Set on the gateway's own settings page; confirm it there |
+| Victron GX        | `venus.local` | A GX announces this **whatever system name is set on it** |
+
+A name follows the device when DHCP moves it, which an address does not — the
+commonest way to end up with a display that comes up perfectly and shows nothing.
+Pass `--ydwg-host` / `--cerbo-host` only if you have changed the names or want to
+use addresses.
+
+Provisioning checks both endpoints before it finishes and tells you which of the
+three things went wrong — the name did not resolve, it resolved but nothing
+answered, or all is well — so a mistake surfaces there rather than as a blank
+screen an hour later.
 
 On the bench, point it at the machine running the simulator instead:
 

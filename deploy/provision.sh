@@ -16,9 +16,15 @@
 set -euo pipefail
 
 REPO="${LCARS_REPO:-GugeNet/lcars-helm}"
+# Both devices advertise themselves over mDNS, so the defaults are names rather
+# than addresses: a name follows the device when DHCP moves it, and getting an
+# address wrong is the easiest way to end up staring at a blank display.
+#
+# Victron GX devices announce as `venus.local` whatever system name is set on
+# them, so that is the name to use — not the model name.
 YDWG_HOST="ydwg.local"
 YDWG_PORT="1457"
-CERBO_HOST="cerbo.local"
+CERBO_HOST="venus.local"
 CERBO_PORT="1883"
 NODE_MAJOR="22"
 SKIP_KIOSK="no"
@@ -31,7 +37,8 @@ Provision a Raspberry Pi for lcars-helm.
 
   --ydwg-host <host>    Yacht Devices gateway (default ydwg.local)
   --ydwg-port <port>    Gateway RAW TCP port (default 1457)
-  --cerbo-host <host>   Victron Cerbo GX (default cerbo.local)
+  --cerbo-host <host>   Victron GX device (default venus.local, which is what
+                        a GX announces regardless of its configured name)
   --cerbo-port <port>   Cerbo MQTT port (default 1883)
   --repo <owner/name>   GitHub repository to pull releases from
   --github-token <tok>  Token for the private repository; may also be given as
@@ -72,7 +79,10 @@ log() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 log "Installing system packages"
 sudo apt-get update -qq
 # jq and curl are not optional: the updater cannot read a release without them.
-sudo apt-get install -y --no-install-recommends ca-certificates curl git jq procps
+# avahi-daemon and libnss-mdns are what make `.local` names resolve at all; the
+# defaults above are useless without them.
+sudo apt-get install -y --no-install-recommends \
+  ca-certificates curl git jq procps avahi-daemon libnss-mdns
 
 if [[ "$SKIP_KIOSK" == "no" ]]; then
   # Raspberry Pi OS calls it `chromium`; plain Debian and older images use
@@ -157,6 +167,42 @@ render() {
 log "Writing Signal K configuration"
 render "$CONF_SRC/signalk/settings.template.json" "$SK_DIR/settings.json"
 render "$CONF_SRC/signalk/plugin-config-data/venus.json" "$SK_DIR/plugin-config-data/venus.json"
+
+# Check the endpoints now rather than letting a wrong name show up later as a
+# blank display with nothing to explain it. Neither failure stops provisioning:
+# on the bench the simulator is often not running yet, and on the boat the
+# instruments may simply be switched off.
+check_endpoint() {
+  local label="$1" host="$2" port="$3"
+
+  # Try the connection first and let bash resolve the name itself, so this does
+  # not depend on getent being present or on how mDNS is wired up. Only work out
+  # why on failure, because that is the only time the distinction matters.
+  if timeout 4 bash -c "exec 3<>/dev/tcp/${host}/${port}" 2>/dev/null; then
+    echo "    $label: $host:$port — reachable"
+    return
+  fi
+
+  # Node is already installed by this point and resolves names the same way the
+  # server will, which beats guessing at ping's flags or assuming getent.
+  local resolved="no"
+  if node -e 'require("dns").lookup(process.argv[1], (err) => process.exit(err ? 1 : 0))' \
+       "$host" >/dev/null 2>&1; then
+    resolved="yes"
+  fi
+
+  if [[ "$resolved" == "yes" ]]; then
+    echo "    $label: $host resolves, but nothing is answering on port $port"
+    ENDPOINT_WARNINGS="${ENDPOINT_WARNINGS:-}${ENDPOINT_WARNINGS:+$'\n'}  $label $host:$port did not answer — is the device powered, and is the port right?"
+  else
+    echo "    $label: '$host' does not resolve"
+    ENDPOINT_WARNINGS="${ENDPOINT_WARNINGS:-}${ENDPOINT_WARNINGS:+$'\n'}  $label '$host' did not resolve — check the name on the device, or pass an address instead"
+  fi
+}
+
+log "Checking the instrument endpoints"
+check_endpoint "NMEA 2000 gateway" "$YDWG_HOST" "$YDWG_PORT"
+check_endpoint "Victron GX" "$CERBO_HOST" "$CERBO_PORT"
 
 # --------------------------------------------------------------- services ---
 
@@ -292,6 +338,16 @@ EOF
 if [[ -n "${PLUGIN_FAILURES:-}" ]]; then
   echo "  WARNING: these plugins did not install: ${PLUGIN_FAILURES}"
   echo "           Install them from the Signal K admin UI, or re-run this script."
+  echo
+fi
+
+if [[ -n "${ENDPOINT_WARNINGS:-}" ]]; then
+  echo "  The display will come up, but with no data until these are sorted:"
+  echo "${ENDPOINT_WARNINGS}"
+  echo
+  echo "  Edit the host in ~/.signalk/settings.json (gateway) or"
+  echo "  ~/.signalk/plugin-config-data/venus.json (Victron), then:"
+  echo "      sudo systemctl restart signalk"
   echo
 fi
 
