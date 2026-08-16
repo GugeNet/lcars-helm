@@ -3,8 +3,7 @@ import { Gauge, Panel, Readout, TrendGraph } from '../lcars/index.js'
 import { bearing, celsius, clockTime, hectopascal, knots, metres, percent, watts } from '../format.js'
 import { useHistory } from '../store/useHistory.js'
 import { useNumbers } from '../store/vesselStore.js'
-import { chargeTone, depthTone } from './tones.js'
-import { SHORE_CONNECTED_WATTS } from '../situations/detect.js'
+import { chargeTone, depthTone, describeShorePower } from './tones.js'
 
 const WATCHED = [
   'batteryStateOfCharge',
@@ -28,7 +27,7 @@ export function MarinaDashboard(): ReactNode {
   const values = useNumbers(WATCHED)
   const depthHistory = useHistory('depthBelowTransducer', { intervalMs: 30_000, samples: 80 })
 
-  const onShorePower = values.shorePower !== null && values.shorePower > SHORE_CONNECTED_WATTS
+  const shorePower = describeShorePower(values.shorePower)
 
   return (
     <div className="dash dash--marina">
@@ -43,12 +42,7 @@ export function MarinaDashboard(): ReactNode {
         <Gauge fraction={values.batteryStateOfCharge} tone={chargeTone(values.batteryStateOfCharge)} />
       </div>
       <div>
-        <Readout
-          label="Shore power"
-          value={onShorePower ? watts(values.shorePower) : 'OFF'}
-          unit={onShorePower ? 'W' : undefined}
-          tone={onShorePower ? 'normal' : 'warn'}
-        />
+        <Readout label="Shore power" value={shorePower.value} unit={shorePower.unit} tone={shorePower.tone} />
       </div>
       <div>
         <Readout label="Solar" value={watts(values.solarPower)} unit="W" />

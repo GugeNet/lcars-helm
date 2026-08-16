@@ -1,4 +1,6 @@
 import type { ReadoutTone } from '../lcars/index.js'
+import { NO_DATA, watts } from '../format.js'
+import { SHORE_CONNECTED_WATTS } from '../situations/detect.js'
 
 /**
  * Where the thresholds live that turn a number amber or red. They are gathered
@@ -49,4 +51,27 @@ export function coolantTone(kelvin: number | null): ReadoutTone {
   if (kelvin > COOLANT_ALARM) return 'alarm'
   if (kelvin > COOLANT_WARN) return 'warn'
   return 'normal'
+}
+
+export interface ShorePowerReadout {
+  value: string
+  unit?: string
+  tone: ReadoutTone
+}
+
+/**
+ * "No shore power reading has ever arrived" and "a reading arrived and it is
+ * off" collapse to the same `null` in the data model, but they are not the
+ * same fact about the boat — one is a gap in what the Cerbo can see, the
+ * other is confirmed. Found the hard way: a Cerbo with no inverter/charger
+ * linked to it reports shore power as `null` permanently, and a dashboard
+ * that shows "OFF" for that looks exactly as confident as one reporting a
+ * genuine off state, which is not a distinction to blur on a boat.
+ */
+export function describeShorePower(shorePowerWatts: number | null): ShorePowerReadout {
+  if (shorePowerWatts === null) return { value: NO_DATA, tone: 'normal' }
+  if (shorePowerWatts > SHORE_CONNECTED_WATTS) {
+    return { value: watts(shorePowerWatts), unit: 'W', tone: 'normal' }
+  }
+  return { value: 'OFF', tone: 'warn' }
 }
