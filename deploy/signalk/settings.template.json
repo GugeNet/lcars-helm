@@ -1,5 +1,5 @@
 {
-  "$comment": "Signal K server settings for lcars-helm. Placeholders are replaced by deploy/provision.sh on the Pi and by scripts/setup-dev-signalk.mjs during development. The two differ only in the host names, so what runs on the bench is what runs on the boat.",
+  "$comment": "Signal K server settings for lcars-helm. Placeholders are replaced by deploy/provision.sh on the Pi and by scripts/setup-dev-signalk.mjs during development. The two differ only in the host names, so what runs on the bench is what runs on the boat. The connection is UDP because that is what Cinderella's actual YDWG-02 is configured for: RAW protocol on UDP 1457, bidirectional; TCP 1456 on this gateway carries NMEA 0183 (transmit-only), a different and older protocol that is not what this connects to. Confirmed against the real gateway on 2026-08-14 — canboatjs decoded 41 distinct PGNs from a 15-second capture, including rudder, heading, wind, rate of turn, GPS and speed.",
   "interfaces": {},
   "ssl": false,
   "pipedProviders": [
@@ -13,11 +13,10 @@
             "logging": false,
             "type": "NMEA2000",
             "subOptions": {
-              "type": "ydwg02-canboatjs",
+              "type": "ydwg02-udp-canboatjs",
               "host": "__YDWG_HOST__",
               "port": __YDWG_PORT__,
-              "$comment": "Seconds of silence before the socket is treated as dead and reopened. The default is 60, which is a long time to stare at frozen instruments: when the boat's WiFi drops, TCP does not notice, so Signal K holds a half-open socket until this fires. A live NMEA 2000 bus produces traffic several times a second, so 20 seconds is far longer than any real gap while still recovering quickly. Reconnection itself then backs off to at most 5 seconds.",
-              "noDataReceivedTimeout": 20
+              "$comment": "`host` is only used if Signal K ever writes back to the gateway; it plays no part in receiving. The UDP provider binds `port` locally and accepts any datagram that arrives there — a broadcast socket, not a connection — which is also why there is nothing here like the TCP provider's noDataReceivedTimeout: there is no socket to go stale after a WiFi blip. Signal K just keeps listening, and picks back up the moment packets resume."
             }
           }
         }

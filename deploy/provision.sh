@@ -172,7 +172,7 @@ render "$CONF_SRC/signalk/plugin-config-data/venus.json" "$SK_DIR/plugin-config-
 # blank display with nothing to explain it. Neither failure stops provisioning:
 # on the bench the simulator is often not running yet, and on the boat the
 # instruments may simply be switched off.
-check_endpoint() {
+check_endpoint_tcp() {
   local label="$1" host="$2" port="$3"
 
   # Try the connection first and let bash resolve the name itself, so this does
@@ -200,9 +200,36 @@ check_endpoint() {
   fi
 }
 
+# The YDWG's RAW feed is UDP and broadcast, not a connection — there is nothing
+# to "connect" to, so a TCP-style probe always reports failure even when the
+# service is healthy. (It did, the first time this was tried against a real
+# gateway.) This instead does what Signal K's own UDP provider does: bind the
+# port locally and see whether anything arrives, unicast or not — which is also
+# why, unlike the TCP check, it has no use for the host argument at all.
+check_endpoint_udp_broadcast() {
+  local label="$1" port="$2"
+  local seconds="${UDP_CHECK_SECONDS:-3}"
+
+  if node -e '
+      const dgram = require("dgram")
+      const port = Number(process.argv[1])
+      const seconds = Number(process.argv[2])
+      const socket = dgram.createSocket("udp4")
+      socket.on("message", () => { socket.close(); process.exit(0) })
+      socket.on("error", () => process.exit(1))
+      socket.bind(port, () => socket.setBroadcast(true))
+      setTimeout(() => process.exit(1), seconds * 1000)
+    ' "$port" "$seconds" 2>/dev/null; then
+    echo "    $label: udp/$port — broadcast traffic seen"
+  else
+    echo "    $label: nothing heard on udp/$port within ${seconds}s"
+    ENDPOINT_WARNINGS="${ENDPOINT_WARNINGS:-}${ENDPOINT_WARNINGS:+$'\n'}  $label: no traffic seen on udp/$port in ${seconds}s — is the gateway's RAW service enabled?"
+  fi
+}
+
 log "Checking the instrument endpoints"
-check_endpoint "NMEA 2000 gateway" "$YDWG_HOST" "$YDWG_PORT"
-check_endpoint "Victron GX" "$CERBO_HOST" "$CERBO_PORT"
+check_endpoint_udp_broadcast "NMEA 2000 gateway" "$YDWG_PORT"
+check_endpoint_tcp "Victron GX" "$CERBO_HOST" "$CERBO_PORT"
 
 # --------------------------------------------------------------- services ---
 

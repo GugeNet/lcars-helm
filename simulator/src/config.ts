@@ -23,10 +23,13 @@ export interface SimulatorConfig {
 
 export const DEFAULTS: SimulatorConfig = {
   scenario: 'cruising',
-  // The YDWG-02's RAW server port. Configurable on the real gateway's web page,
-  // and the same value must be set in the Signal K connection.
+  // The YDWG-02's RAW server ports, both configurable on the real gateway's web
+  // page. Both are enabled by default because both are useful to test against,
+  // but UDP is what Signal K actually connects to: confirmed against Cinderella's
+  // real gateway, whose RAW service is UDP-only — its TCP 1456 carries NMEA 0183
+  // (a different, older protocol), not RAW, and it has no TCP RAW service at all.
   tcpPort: 1457,
-  udpPort: 0,
+  udpPort: 1457,
   host: '0.0.0.0',
   rate: 10,
   speed: 1,
@@ -39,8 +42,8 @@ export const USAGE = `
 lcars-sim — sailboat simulator for lcars-helm
 
   --scenario <id>     cruising | motoring | racing | anchored | marina
-  --tcp-port <port>   YDWG-02 RAW TCP port (default ${DEFAULTS.tcpPort})
-  --udp-port <port>   also broadcast RAW over UDP (0 = off)
+  --tcp-port <port>   YDWG-02 RAW TCP port (default ${DEFAULTS.tcpPort}, 0 = off)
+  --udp-port <port>   YDWG-02 RAW UDP broadcast port (default ${DEFAULTS.udpPort}, 0 = off) — this is what Signal K on the real boat connects to
   --host <address>    interface to bind to (default ${DEFAULTS.host})
   --rate <hz>         simulation ticks per second (default ${DEFAULTS.rate})
   --speed <factor>    simulated seconds per real second (default ${DEFAULTS.speed})

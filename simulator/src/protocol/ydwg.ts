@@ -8,9 +8,9 @@ const { pgnToYdgwRawFormat } = canboat as {
 }
 
 export interface YdwgOptions {
-  /** TCP port for the RAW server. Must match the gateway's own configuration. */
-  tcpPort: number
-  /** When set, RAW frames are also broadcast over UDP, as the real gateway does. */
+  /** TCP port for the RAW server, or unset/0 to disable it. */
+  tcpPort?: number
+  /** UDP port RAW frames are broadcast on, as the real gateway does, or unset/0 to disable. */
   udpPort?: number
   /** Broadcast address for the UDP server. */
   udpAddress?: string
@@ -79,6 +79,12 @@ export class YdwgGateway {
   }
 
   start(): Promise<void> {
+    return Promise.all([this.startTcp(), this.startUdp()]).then(() => undefined)
+  }
+
+  private startTcp(): Promise<void> {
+    if (!this.options.tcpPort) return Promise.resolve()
+
     return new Promise((resolve, reject) => {
       const server = net.createServer((socket) => {
         socket.setNoDelay(true)
@@ -100,7 +106,7 @@ export class YdwgGateway {
       server.listen(this.options.tcpPort, this.options.host ?? '0.0.0.0', () => {
         this.server = server
         this.log(`YDWG RAW TCP server listening on port ${this.options.tcpPort}`)
-        this.startUdp().then(resolve).catch(reject)
+        resolve()
       })
     })
   }

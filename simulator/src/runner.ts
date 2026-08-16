@@ -40,7 +40,7 @@ export class SimulatorRunner {
       onAnnounce: (message) => this.log(`[${this.simulation.activeScenario.id}] ${message}`)
     })
     this.gateway = new YdwgGateway({
-      tcpPort: config.tcpPort,
+      tcpPort: config.tcpPort > 0 ? config.tcpPort : undefined,
       udpPort: config.udpPort > 0 ? config.udpPort : undefined,
       host: config.host,
       onLog: (message) => this.log(message)

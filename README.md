@@ -24,6 +24,7 @@ boat — only the host names differ.
 | `simulator/` | Boat physics plus YDWG-02 and Cerbo GX emulators.                   |
 | `deploy/`    | Raspberry Pi provisioning, kiosk setup, auto-updater, SK templates. |
 | `scripts/`   | Development helpers.                                                |
+| `cloud/`     | ASP.NET Core Azure app: log ingestion API, analytics dashboard, and marina/anchorage data, backed by Azure Storage. See [cloud/README.md](cloud/README.md). |
 
 ## Getting started
 
@@ -76,15 +77,18 @@ npm run sim -- --scenario anchored --speed 10
 ```
 
 It impersonates both pieces of hardware at once. It serves Yacht Devices RAW frames
-over TCP exactly as a YDWG-02 does, so Signal K connects with the stock **Yacht
-Devices RAW TCP (canboatjs)** data connection; and it runs an MQTT broker publishing
-the Venus topic tree, so `signalk-venus-plugin` talks to it as though it were the
-Cerbo GX — portal-id discovery, keepalives and all.
+over both TCP and UDP exactly as a YDWG-02 does. Signal K on the boat connects over
+**UDP** — confirmed against Cinderella's real gateway, whose RAW service is UDP-only;
+its TCP port carries NMEA 0183 (a different, older protocol), not RAW. TCP RAW is
+still served too, for a gateway configured differently. The simulator also runs an
+MQTT broker publishing the Venus topic tree, so `signalk-venus-plugin` talks to it as
+though it were the Cerbo GX — portal-id discovery, keepalives and all.
 
 | Option            | Meaning                                                |
 | ----------------- | ------------------------------------------------------ |
 | `--scenario <id>` | `cruising`, `motoring`, `racing`, `anchored`, `marina` |
-| `--tcp-port`      | YDWG RAW server port (default 1457)                    |
+| `--tcp-port`      | YDWG RAW TCP port (default 1457, 0 disables)           |
+| `--udp-port`      | YDWG RAW UDP port (default 1457, 0 disables) — this is what the real boat uses |
 | `--mqtt-port`     | Emulated Cerbo GX MQTT port (default 1883, 0 disables) |
 | `--speed`         | Simulated seconds per real second                      |
 | `--rate`          | Simulation ticks per second (default 10)               |
