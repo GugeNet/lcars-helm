@@ -120,10 +120,11 @@ it never switches by itself, and the situation can always be set by hand.
 kiosk and an updater that installs new releases from GitHub by itself:
 
 ```bash
-deploy/provision.sh --ydwg-host 192.168.1.50 --cerbo-host 192.168.1.51 --github-token github_pat_...
+deploy/provision.sh --ydwg-host 192.168.1.50 --cerbo-host 192.168.1.51
 ```
 
-The repository is private, so the Pi needs a read-only token to fetch releases.
+The repository is public, so no token is needed — see [deploy/README.md](deploy/README.md)
+if you want one anyway, for the higher rate limit or in case it goes private again.
 
 Tagging a version publishes a release, and the boat picks it up within ten minutes.
 The updater verifies checksums before installing and rolls back to the previous

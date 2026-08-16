@@ -41,8 +41,10 @@ Provision a Raspberry Pi for lcars-helm.
                         a GX announces regardless of its configured name)
   --cerbo-port <port>   Cerbo MQTT port (default 1883)
   --repo <owner/name>   GitHub repository to pull releases from
-  --github-token <tok>  Token for the private repository; may also be given as
-                        LCARS_GITHUB_TOKEN. Kept if already installed.
+  --github-token <tok>  Optional; not needed while the repo is public. Raises
+                        the rate limit and would be needed again if it were
+                        made private. May also be given as LCARS_GITHUB_TOKEN.
+                        Kept if already installed.
   --no-kiosk            Install the server only, no display
   -h, --help            This message
 EOF
@@ -263,8 +265,16 @@ EOF
 sudo chmod 0440 /etc/sudoers.d/lcars-helm
 sudo visudo -cf /etc/sudoers.d/lcars-helm >/dev/null
 
-# The GitHub token lives in a root-owned file that only systemd reads, so it
-# never appears in the unit file, in `systemctl show`, or in this user's shell
+# lcars-helm is a public repository, so a token is not required for the
+# updater to work — GitHub serves release metadata and assets unauthenticated.
+# A token is still supported and still worth having if the repo ever goes
+# private again, or to get the much higher authenticated rate limit, but its
+# absence is not an error, and a *stale* one is actively worse than none: an
+# expired or revoked token still gets sent, and GitHub rejects a bad token
+# outright rather than falling back to anonymous access — confirmed the hard
+# way on a Pi that sat failing every ten minutes because of exactly that.
+# The token lives in a root-owned file that only systemd reads, so it never
+# appears in the unit file, in `systemctl show`, or in this user's shell
 # history. Re-running without --github-token keeps the token already installed.
 if [[ -n "$GITHUB_TOKEN" ]]; then
   printf 'LCARS_GITHUB_TOKEN=%s\n' "$GITHUB_TOKEN" | sudo tee "$ENV_FILE" >/dev/null
@@ -274,8 +284,7 @@ if [[ -n "$GITHUB_TOKEN" ]]; then
 elif sudo test -f "$ENV_FILE"; then
   echo "    keeping the GitHub token already in $ENV_FILE"
 else
-  echo "    WARNING: no GitHub token supplied; automatic updates will fail" >&2
-  echo "             against a private repository. Re-run with --github-token." >&2
+  echo "    no GitHub token supplied — fine, the repository is public"
 fi
 
 sudo tee /etc/systemd/system/lcars-update.service >/dev/null <<EOF
@@ -348,6 +357,9 @@ else
   echo "    the timer will retry every ten minutes"
 fi
 
+releases_note="${REPO} (public, no token needed)"
+sudo test -f "$ENV_FILE" && releases_note="${REPO} (token in ${ENV_FILE})"
+
 cat <<EOF
 
 $(log "Done")
@@ -355,7 +367,7 @@ $(log "Done")
   Display:     http://localhost:3000/lcars-helm
   Gateway:     ${YDWG_HOST}:${YDWG_PORT}
   Cerbo:       ${CERBO_HOST}:${CERBO_PORT}
-  Releases:    ${REPO} (token in ${ENV_FILE})
+  Releases:    ${releases_note}
 
   systemctl status signalk lcars-update.timer
   journalctl -u lcars-update -f

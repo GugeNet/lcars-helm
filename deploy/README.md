@@ -3,25 +3,37 @@
 Everything needed to turn a Raspberry Pi into the nav station display, and to
 keep it up to date afterwards without anyone touching it.
 
-## The access token
+## The access token (optional — the repo is public)
 
-The repository is private, so the Pi needs a token to read releases. Create a
-**fine-grained personal access token** at
+`GugeNet/lcars-helm` is a public repository, so the Pi needs no token at all to
+read releases; `provision.sh` works with no `--github-token` flag. A token is
+still supported, and worth having for either of two reasons: a much higher
+GitHub API rate limit, or in case the repository is ever made private again.
+
+If you do set one, use a **fine-grained personal access token** at
 <https://github.com/settings/personal-access-tokens> with:
 
 - **Repository access** — only `GugeNet/lcars-helm`
 - **Permissions** — `Contents: Read-only`
 
-That is the whole scope needed: read the release list and download its assets.
-Nothing that token can do would let anyone change the repository.
-
 Give it to `provision.sh` once and it is stored in `/etc/lcars-helm.env`, owned
 by root and readable only by root, which systemd reads before dropping to the
 normal user. It never appears in the unit file or in shell history.
 
-Fine-grained tokens expire. When one does, the updater stops with a loud error
-in the journal rather than failing quietly — but the boat will not update until
-it is replaced:
+**A stale token is worse than no token.** GitHub rejects an expired or revoked
+one outright — it does not fall back to anonymous access just because the
+resource is public. A Pi with a bad token in `/etc/lcars-helm.env` will fail
+every ten minutes with a clear `401` in the journal, even though the exact same
+request with no `Authorization` header at all would have succeeded. If you are
+not actively relying on a token, the simplest fix is to remove the file:
+
+```bash
+sudo rm -f /etc/lcars-helm.env
+sudo systemctl start lcars-update.service
+```
+
+If you'd rather rotate it than drop it, fine-grained tokens expire, and the
+updater stops with a loud error in the journal rather than failing quietly:
 
 ```bash
 sudo install -m 600 -o root -g root /dev/null /etc/lcars-helm.env
@@ -29,21 +41,17 @@ echo 'LCARS_GITHUB_TOKEN=github_pat_...' | sudo tee /etc/lcars-helm.env >/dev/nu
 sudo systemctl start lcars-update.service
 ```
 
-Set a calendar reminder for a week before the expiry date, or use a token with
-no expiry if the Pi is the only thing holding it.
+Set a calendar reminder for a week before the expiry date if you go this route.
 
 ## Provisioning a Pi
 
 Both the boat Pi and the spare on the bench are set up the same way; only the
 host names differ.
 
-Cloning a private repository on the Pi needs credentials too — the simplest is a
-one-off HTTPS clone using the same token:
-
 ```bash
-git clone https://github_pat_...@github.com/GugeNet/lcars-helm.git
+git clone https://github.com/GugeNet/lcars-helm.git
 cd lcars-helm
-deploy/provision.sh --github-token github_pat_...
+deploy/provision.sh
 ```
 
 On the boat that is usually the whole command. Both devices advertise themselves
@@ -67,10 +75,8 @@ screen an hour later.
 On the bench, point it at the machine running the simulator instead:
 
 ```bash
-deploy/provision.sh --ydwg-host 192.168.1.80 --cerbo-host 192.168.1.80 --github-token github_pat_...
+deploy/provision.sh --ydwg-host 192.168.1.80 --cerbo-host 192.168.1.80
 ```
-
-Re-running later without `--github-token` keeps the token already installed.
 
 The script installs Node, Signal K and its plugins, writes the Signal K
 configuration, installs the services, and sets up the Chromium kiosk. It is safe
@@ -111,13 +117,16 @@ publish otherwise.
 
 - It exits quietly when GitHub cannot be reached. A 4G link that drops mid-passage
   is normal, not an error.
-- It does **not** treat an authentication failure as a network failure. On a
-  private repository GitHub answers an unauthenticated request with `404`, which
-  would otherwise read as "no release yet" and silently stop updates for good.
-  A missing, expired or revoked token fails loudly instead, naming the cause.
+- It does **not** treat an authentication failure as a network failure — a bad
+  token fails loudly instead of quietly, naming the cause, whether or not one is
+  actually needed. (The repo is public now, but the check stays: a Pi with a
+  stale token configured would otherwise fail every ten minutes without saying
+  why, which is exactly what happened before this was written.)
 - Release assets are fetched through the API asset URL with an `octet-stream`
-  Accept header. The `browser_download_url` in the release JSON is a web-session
-  URL and a token will not open it on a private repository.
+  Accept header, which works whether or not a token is set. The
+  `browser_download_url` in the release JSON only works for a public repository
+  and only without a token, so the API URL is used unconditionally rather than
+  depending on which case currently applies.
 - It refuses to install a release with no `SHA256SUMS`, or one whose checksum does
   not match. An interrupted download is far more likely than a malicious one, and
   both are handled the same way.
@@ -126,7 +135,14 @@ publish otherwise.
   local copy and the server restarted again — no network needed, which matters
   when the network may be what broke.
 - The installed version is only recorded once the new one has been seen working,
-  so a failed update is retried rather than assumed done.
+  so a failed update is retried rather than assumed done. But the recorded
+  version is not trusted blindly either: if it matches the latest release yet the
+  display is not actually responding, that is treated as a reason to reinstall,
+  not a reason to stop looking. The two can drift apart — confirmed on a Pi that
+  had `v0.1.0` recorded as installed while `/lcars-helm/` had been serving a 404
+  for days, because an unrelated `npm install` in the same directory had pruned
+  the package (installed with `--no-save`, so nothing else considered it a
+  dependency worth keeping) and nothing had ever rechecked.
 
 To watch it:
 

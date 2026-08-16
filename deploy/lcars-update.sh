@@ -78,8 +78,18 @@ installed=""
 [[ -f "$VERSION_FILE" ]] && installed="$(cat "$VERSION_FILE")"
 
 if [[ "$tag" == "$installed" ]]; then
-  log "already on $tag"
-  exit 0
+  # The recorded version is only trustworthy if the thing it claims to have
+  # installed is actually there. It can drift: an unrelated `npm install` in
+  # the same directory can silently prune a package that was installed with
+  # --no-save (as this one is, deliberately, so it never enters package.json),
+  # and the version file has no way to notice on its own. Confirmed exactly
+  # this happening — a Pi that recorded v0.1.0 as installed while the display
+  # had been serving a 404 for it for days, because nothing ever rechecked.
+  if curl -fsS --max-time 5 -o /dev/null "$HEALTH_URL" 2>/dev/null; then
+    log "already on $tag"
+    exit 0
+  fi
+  log "recorded as $tag but $HEALTH_URL is not responding — reinstalling to recover"
 fi
 
 log "installed=${installed:-none} available=$tag"
