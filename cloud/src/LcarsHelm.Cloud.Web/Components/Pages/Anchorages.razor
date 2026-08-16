@@ -1,0 +1,116 @@
+@page "/anchorages"
+@inject IAnchorageStore AnchorageStore
+@rendermode InteractiveServer
+
+<PageTitle>LCARS Cloud — Anchorages</PageTitle>
+
+<h1>Anchorages</h1>
+
+@if (anchorages is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Holding ground</th>
+                <th>Typical depth</th>
+                <th>Sheltered from</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var anchorage in anchorages)
+            {
+                <tr>
+                    <td>@anchorage.Name</td>
+                    <td>@anchorage.Position.Latitude.ToString("F5"), @anchorage.Position.Longitude.ToString("F5")</td>
+                    <td>@anchorage.HoldingGround</td>
+                    <td>@(anchorage.TypicalDepthMeters?.ToString("F1") ?? "-") m</td>
+                    <td>@anchorage.ShelteredFrom</td>
+                    <td><button @onclick="() => DeleteAsync(anchorage.Id)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Add anchorage</h2>
+
+<EditForm Model="newAnchorage" OnValidSubmit="AddAsync">
+    <div>
+        <label>Name <InputText @bind-Value="newAnchorage.Name" /></label>
+    </div>
+    <div>
+        <label>Latitude <InputNumber @bind-Value="newAnchorage.Latitude" /></label>
+        <label>Longitude <InputNumber @bind-Value="newAnchorage.Longitude" /></label>
+    </div>
+    <div>
+        <label>Holding ground <InputText @bind-Value="newAnchorage.HoldingGround" /></label>
+    </div>
+    <div>
+        <label>Typical depth (m) <InputNumber @bind-Value="newAnchorage.TypicalDepthMeters" /></label>
+    </div>
+    <div>
+        <label>Sheltered from <InputText @bind-Value="newAnchorage.ShelteredFrom" /></label>
+    </div>
+    <div>
+        <label>Notes <InputTextArea @bind-Value="newAnchorage.Notes" /></label>
+    </div>
+    <button type="submit">Add</button>
+</EditForm>
+
+@code {
+    private List<Anchorage>? anchorages;
+    private NewAnchorageForm newAnchorage = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var loaded = new List<Anchorage>();
+        await foreach (var anchorage in AnchorageStore.ListAsync())
+        {
+            loaded.Add(anchorage);
+        }
+
+        anchorages = loaded.OrderBy(a => a.Name).ToList();
+    }
+
+    private async Task AddAsync()
+    {
+        await AnchorageStore.UpsertAsync(new Anchorage
+        {
+            Name = newAnchorage.Name,
+            Position = new Position(newAnchorage.Latitude, newAnchorage.Longitude),
+            HoldingGround = string.IsNullOrWhiteSpace(newAnchorage.HoldingGround) ? null : newAnchorage.HoldingGround,
+            TypicalDepthMeters = newAnchorage.TypicalDepthMeters,
+            ShelteredFrom = string.IsNullOrWhiteSpace(newAnchorage.ShelteredFrom) ? null : newAnchorage.ShelteredFrom,
+            Notes = string.IsNullOrWhiteSpace(newAnchorage.Notes) ? null : newAnchorage.Notes,
+        });
+
+        newAnchorage = new NewAnchorageForm();
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await AnchorageStore.DeleteAsync(id);
+        await LoadAsync();
+    }
+
+    private sealed class NewAnchorageForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string HoldingGround { get; set; } = string.Empty;
+        public double? TypicalDepthMeters { get; set; }
+        public string ShelteredFrom { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+    }
+}

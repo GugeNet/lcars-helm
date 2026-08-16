@@ -1,0 +1,119 @@
+@page "/marinas"
+@inject IMarinaStore MarinaStore
+@rendermode InteractiveServer
+
+<PageTitle>LCARS Cloud — Marinas</PageTitle>
+
+<h1>Marinas</h1>
+
+@if (marinas is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>VHF</th>
+                <th>Shore power</th>
+                <th>Fuel dock</th>
+                <th>Water</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var marina in marinas)
+            {
+                <tr>
+                    <td>@marina.Name</td>
+                    <td>@marina.Position.Latitude.ToString("F5"), @marina.Position.Longitude.ToString("F5")</td>
+                    <td>@marina.VhfChannel</td>
+                    <td>@(marina.HasShorePower ? "Yes" : "No")</td>
+                    <td>@(marina.HasFuelDock ? "Yes" : "No")</td>
+                    <td>@(marina.HasWater ? "Yes" : "No")</td>
+                    <td><button @onclick="() => DeleteAsync(marina.Id)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Add marina</h2>
+
+<EditForm Model="newMarina" OnValidSubmit="AddAsync">
+    <div>
+        <label>Name <InputText @bind-Value="newMarina.Name" /></label>
+    </div>
+    <div>
+        <label>Latitude <InputNumber @bind-Value="newMarina.Latitude" /></label>
+        <label>Longitude <InputNumber @bind-Value="newMarina.Longitude" /></label>
+    </div>
+    <div>
+        <label>VHF channel <InputText @bind-Value="newMarina.VhfChannel" /></label>
+    </div>
+    <div>
+        <label><InputCheckbox @bind-Value="newMarina.HasShorePower" /> Shore power</label>
+        <label><InputCheckbox @bind-Value="newMarina.HasFuelDock" /> Fuel dock</label>
+        <label><InputCheckbox @bind-Value="newMarina.HasWater" /> Water</label>
+    </div>
+    <div>
+        <label>Notes <InputTextArea @bind-Value="newMarina.Notes" /></label>
+    </div>
+    <button type="submit">Add</button>
+</EditForm>
+
+@code {
+    private List<Marina>? marinas;
+    private NewMarinaForm newMarina = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var loaded = new List<Marina>();
+        await foreach (var marina in MarinaStore.ListAsync())
+        {
+            loaded.Add(marina);
+        }
+
+        marinas = loaded.OrderBy(m => m.Name).ToList();
+    }
+
+    private async Task AddAsync()
+    {
+        await MarinaStore.UpsertAsync(new Marina
+        {
+            Name = newMarina.Name,
+            Position = new Position(newMarina.Latitude, newMarina.Longitude),
+            VhfChannel = string.IsNullOrWhiteSpace(newMarina.VhfChannel) ? null : newMarina.VhfChannel,
+            HasShorePower = newMarina.HasShorePower,
+            HasFuelDock = newMarina.HasFuelDock,
+            HasWater = newMarina.HasWater,
+            Notes = string.IsNullOrWhiteSpace(newMarina.Notes) ? null : newMarina.Notes,
+        });
+
+        newMarina = new NewMarinaForm();
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await MarinaStore.DeleteAsync(id);
+        await LoadAsync();
+    }
+
+    private sealed class NewMarinaForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string VhfChannel { get; set; } = string.Empty;
+        public bool HasShorePower { get; set; }
+        public bool HasFuelDock { get; set; }
+        public bool HasWater { get; set; }
+        public string Notes { get; set; } = string.Empty;
+    }
+}

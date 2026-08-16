@@ -22,6 +22,12 @@ Thumbs.db
 # local signalk data dir used during development
 .signalk-dev/
 
+# .NET build output (cloud/)
+bin/
+obj/
+*.user
+appsettings.*.local.json
+
 # vite build output; the published package ships it, git does not
 webapp/public/
 

@@ -1,0 +1,62 @@
+@page "/"
+@inject ILogEntryStore LogEntryStore
+@inject IConfiguration Configuration
+
+<PageTitle>LCARS Cloud — Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (loading)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <p>@entries.Count log entries for <strong>@boatId</strong> in the last 24 hours.</p>
+
+    @if (latest is not null)
+    {
+        <h2>Latest reading</h2>
+        <dl>
+            <dt>Timestamp</dt>
+            <dd>@latest.Timestamp</dd>
+            <dt>Situation</dt>
+            <dd>@(latest.Situation?.ToString() ?? "unknown")</dd>
+            <dt>Position</dt>
+            <dd>@(latest.Position is { } p ? $"{p.Latitude:F5}, {p.Longitude:F5}" : "-")</dd>
+            <dt>Speed over ground</dt>
+            <dd>@(latest.SpeedOverGround?.ToString("F1") ?? "-") kn</dd>
+            <dt>True wind</dt>
+            <dd>@(latest.Wind?.SpeedTrue?.ToString("F1") ?? "-") kn at @(latest.Wind?.DirectionTrue?.ToString("F0") ?? "-")°</dd>
+            <dt>Battery state of charge</dt>
+            <dd>@(latest.Electrical?.StateOfCharge?.ToString("F0") ?? "-") %</dd>
+        </dl>
+    }
+    else
+    {
+        <p>No log entries yet.</p>
+    }
+}
+
+@code {
+    private readonly List<LogEntry> entries = [];
+    private LogEntry? latest;
+    private bool loading = true;
+    private string boatId = "lcars-helm";
+
+    protected override async Task OnInitializedAsync()
+    {
+        boatId = Configuration["DefaultBoatId"] ?? boatId;
+
+        var to = DateTimeOffset.UtcNow;
+        var from = to.AddHours(-24);
+
+        await foreach (var entry in LogEntryStore.QueryAsync(boatId, from, to))
+        {
+            entries.Add(entry);
+        }
+
+        latest = entries.OrderByDescending(e => e.Timestamp).FirstOrDefault();
+        loading = false;
+    }
+}

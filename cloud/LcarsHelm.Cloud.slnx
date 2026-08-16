@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LcarsHelm.Cloud.Api/LcarsHelm.Cloud.Api.csproj" />
+    <Project Path="src/LcarsHelm.Cloud.Core/LcarsHelm.Cloud.Core.csproj" />
+    <Project Path="src/LcarsHelm.Cloud.Web/LcarsHelm.Cloud.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LcarsHelm.Cloud.Tests/LcarsHelm.Cloud.Tests.csproj" />
+  </Folder>
+  <Folder Name="/related-projects/">
+    <File Path="../webapp/package.json" />
+    <File Path="../simulator/package.json" />
+  </Folder>
+</Solution>
