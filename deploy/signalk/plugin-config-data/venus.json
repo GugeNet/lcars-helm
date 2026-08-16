@@ -1,5 +1,5 @@
 {
-  "$comment": "Victron Venus plugin configuration. The Cerbo GX is reached over plain MQTT on the boat network; the simulator's emulated Cerbo answers on the same protocol, so this file is identical on the boat and on the bench apart from the host. Instance mappings give the bank and the charger stable Signal K names, otherwise the paths carry raw Victron instance numbers that change if equipment is swapped.",
+  "$comment": "Victron Venus plugin configuration. The Cerbo GX is reached over plain MQTT on the boat network; the simulator's emulated Cerbo answers on the same protocol, so this file is identical on the boat and on the bench apart from the host. Instance mappings give a device a stable Signal K name, otherwise its paths carry the raw Victron instance number, which can change if the device is reset or swapped. The battery mapping below is not a guess: read directly off Cinderella's real Cerbo on 2026-08-14 by subscribing to its MQTT topic tree (com.victronenergy.battery, instance 279, a BMV-712 Smart on VE.Direct). There is currently no solar charger or inverter/charger connected to this Cerbo at all — confirmed the same way, not merely quiet — so no mapping is given for either; the simulator still emits synthetic data for both (for testing the marina/anchored dashboards), which will appear under its own raw instance numbers rather than a named path until real hardware exists to map. Add an entry here the same way the battery one was found: subscribe to N/+/+/#, publish an empty message to R/<portalId>/system/0/Serial to prompt a state dump, and read the instance number back from the topic path.",
   "enabled": true,
   "enableDebug": false,
   "configuration": {
@@ -14,18 +14,8 @@
     "instanceMappings": [
       {
         "type": "com.victronenergy.battery",
-        "venusId": "512",
+        "venusId": "279",
         "signalkId": "house"
-      },
-      {
-        "type": "com.victronenergy.solarcharger",
-        "venusId": "0",
-        "signalkId": "main"
-      },
-      {
-        "type": "com.victronenergy.vebus",
-        "venusId": "276",
-        "signalkId": "main"
       }
     ]
   }

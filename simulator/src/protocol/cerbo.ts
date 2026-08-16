@@ -16,7 +16,8 @@ export interface CerboOptions {
   port: number
   /** Portal id the installation publishes under. */
   portalId: string
-  /** Battery monitor instance, as it appears in the topic tree. */
+  /** Battery monitor instance, as it appears in the topic tree. Defaults to
+   *  Cinderella's real instance (a BMV-712 Smart), confirmed live on the boat. */
   batteryInstance?: number
   /** Solar charger instance. */
   solarInstance?: number
@@ -34,7 +35,7 @@ export interface CerboOptions {
 const KEEPALIVE_TIMEOUT_MS = 90_000
 
 export interface VictronValue {
-  /** Topic below `N/<portalId>/`, e.g. `battery/512/Soc`. */
+  /** Topic below `N/<portalId>/`, e.g. `battery/279/Soc`. */
   topic: string
   value: number | string | null
 }
@@ -132,7 +133,7 @@ export class CerboGateway {
     this.options = {
       port: options.port,
       portalId: options.portalId,
-      batteryInstance: options.batteryInstance ?? 512,
+      batteryInstance: options.batteryInstance ?? 279,
       solarInstance: options.solarInstance ?? 0,
       vebusInstance: options.vebusInstance ?? 276,
       host: options.host,
