@@ -1,0 +1,12 @@
+[Unit]
+Description=Boat power-loss shutdown monitor
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/lcars-shutdown-monitor
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
