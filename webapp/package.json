@@ -1,6 +1,6 @@
 {
   "name": "lcars-helm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "LCARS instrument display for Signal K",
   "license": "MIT",
   "type": "module",
