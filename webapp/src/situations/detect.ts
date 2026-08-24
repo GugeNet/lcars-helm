@@ -9,8 +9,6 @@ export const UNDER_WAY_SPEED = 1 * KNOT
 export const STOPPED_SPEED = 0.5 * KNOT
 /** Engine revolutions (Hz) above which the engine counts as running. */
 export const ENGINE_RUNNING_HZ = 5
-/** Shore power draw (W) above which the boat counts as plugged in. */
-export const SHORE_CONNECTED_WATTS = 5
 
 /**
  * How long a condition has to hold before the display offers to change
@@ -26,8 +24,8 @@ export interface SituationSnapshot {
   engineRevolutions: number | null
   /** Whether the anchor alarm plugin has an anchor down. */
   anchorDown: boolean
-  /** Shore power draw, W. */
-  shorePower: number | null
+  /** The Multiplus's own mains LED, 1 or 0 — not a power draw. */
+  shoreConnected: number | null
 }
 
 export interface SituationSuggestion {
@@ -46,10 +44,10 @@ export interface SituationSuggestion {
  * Returns null when the data does not support any confident answer.
  */
 export function detectSituation(snapshot: SituationSnapshot): SituationSuggestion | null {
-  const { speedOverGround, engineRevolutions, anchorDown, shorePower } = snapshot
+  const { speedOverGround, engineRevolutions, anchorDown, shoreConnected } = snapshot
 
   const engineRunning = engineRevolutions !== null && engineRevolutions > ENGINE_RUNNING_HZ
-  const plugged = shorePower !== null && shorePower > SHORE_CONNECTED_WATTS
+  const plugged = shoreConnected !== null && shoreConnected > 0
   const stopped = speedOverGround !== null && speedOverGround < STOPPED_SPEED
   const underWay = speedOverGround !== null && speedOverGround > UNDER_WAY_SPEED
 

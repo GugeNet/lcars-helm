@@ -61,8 +61,17 @@ export const PATHS = {
   batteryPower: 'electrical.batteries.house.power',
   batteryTimeRemaining: 'electrical.batteries.house.capacity.timeRemaining',
   solarPower: 'electrical.solar.main.panelPower',
-  // Shore power is what the Multiplus draws on its AC input.
+  // Shore power is what the Multiplus draws on its AC input. This is a
+  // magnitude for display only — it is not a reliable connection signal, since
+  // it drops to near zero once the charger reaches float and stays there for
+  // as long as the batteries stay topped up.
   shorePower: 'electrical.inverters.main.acin.power',
+  // The Multiplus's own "mains" LED — exactly the same boolean the physical
+  // panel lights, and independent of how much current it happens to be
+  // drawing. Found the hard way: at 96% state of charge in float, acin.power
+  // reads a couple of watts, which a wattage threshold reads as unplugged
+  // while the panel's mains LED (and the mains) stayed on the whole time.
+  shoreConnected: 'electrical.chargers.main.leds.mains',
 
   // Anchor, published by the anchor alarm plugin
   anchorPosition: 'navigation.anchor.position',

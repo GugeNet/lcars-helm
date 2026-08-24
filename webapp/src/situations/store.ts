@@ -66,7 +66,7 @@ export const useSituationStore = create<SituationState>((set, get) => ({
   }
 }))
 
-const WATCHED = ['speedOverGround', 'engineRevolutions', 'shorePower'] as const
+const WATCHED = ['speedOverGround', 'engineRevolutions', 'shoreConnected'] as const
 
 /**
  * Watches the instruments and offers a change of situation once the evidence
@@ -85,7 +85,7 @@ export function useSituationWatcher(): void {
     speedOverGround: values.speedOverGround,
     engineRevolutions: values.engineRevolutions,
     anchorDown: anchorPosition !== null,
-    shorePower: values.shorePower
+    shoreConnected: values.shoreConnected
   }
 
   const detected = detectSituation(snapshot)

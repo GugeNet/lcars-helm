@@ -1,6 +1,5 @@
 import type { ReadoutTone } from '../lcars/index.js'
 import { NO_DATA, watts } from '../format.js'
-import { SHORE_CONNECTED_WATTS } from '../situations/detect.js'
 
 /**
  * Where the thresholds live that turn a number amber or red. They are gathered
@@ -60,18 +59,26 @@ export interface ShorePowerReadout {
 }
 
 /**
- * "No shore power reading has ever arrived" and "a reading arrived and it is
- * off" collapse to the same `null` in the data model, but they are not the
- * same fact about the boat — one is a gap in what the Cerbo can see, the
- * other is confirmed. Found the hard way: a Cerbo with no inverter/charger
- * linked to it reports shore power as `null` permanently, and a dashboard
- * that shows "OFF" for that looks exactly as confident as one reporting a
- * genuine off state, which is not a distinction to blur on a boat.
+ * Connection state comes from the Multiplus's own mains LED, not from AC-in
+ * wattage: power draw legitimately falls to near zero once the charger
+ * reaches float, which used to read as "unplugged" while the panel's own
+ * mains LED — and the mains — stayed on the whole time. Wattage is still
+ * shown once connected, since it is a genuinely useful number; it is just not
+ * the one that decides on/off.
+ *
+ * "No reading has ever arrived" and "a reading arrived and it is off" collapse
+ * to the same `null` in the data model, but they are not the same fact about
+ * the boat — one is a gap in what the Cerbo can see, the other is confirmed.
+ * Found the hard way: a Cerbo with no inverter/charger linked to it reports
+ * this as `null` permanently, and a dashboard that shows "OFF" for that looks
+ * exactly as confident as one reporting a genuine off state, which is not a
+ * distinction to blur on a boat.
  */
-export function describeShorePower(shorePowerWatts: number | null): ShorePowerReadout {
-  if (shorePowerWatts === null) return { value: NO_DATA, tone: 'normal' }
-  if (shorePowerWatts > SHORE_CONNECTED_WATTS) {
-    return { value: watts(shorePowerWatts), unit: 'W', tone: 'normal' }
-  }
-  return { value: 'OFF', tone: 'warn' }
+export function describeShorePower(
+  shorePowerWatts: number | null,
+  shoreConnected: number | null
+): ShorePowerReadout {
+  if (shoreConnected === null) return { value: NO_DATA, tone: 'normal' }
+  if (shoreConnected === 0) return { value: 'OFF', tone: 'warn' }
+  return { value: watts(shorePowerWatts ?? 0), unit: 'W', tone: 'normal' }
 }

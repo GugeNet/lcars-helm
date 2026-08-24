@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  detectSituation,
-  ENGINE_RUNNING_HZ,
-  SHORE_CONNECTED_WATTS,
-  type SituationSnapshot
-} from '../src/situations/detect.js'
+import { detectSituation, ENGINE_RUNNING_HZ, type SituationSnapshot } from '../src/situations/detect.js'
 
 const KNOT = 0.514444
 
@@ -12,7 +7,7 @@ const base: SituationSnapshot = {
   speedOverGround: 0,
   engineRevolutions: 0,
   anchorDown: false,
-  shorePower: 0
+  shoreConnected: 0
 }
 
 describe('detecting the situation', () => {
@@ -33,7 +28,7 @@ describe('detecting the situation', () => {
   it('recognises the marina from shore power and no movement', () => {
     const result = detectSituation({
       ...base,
-      shorePower: SHORE_CONNECTED_WATTS + 100,
+      shoreConnected: 1,
       speedOverGround: 0.05
     })
     expect(result?.situation).toBe('marina')
@@ -65,7 +60,19 @@ describe('detecting the situation', () => {
     const result = detectSituation({
       ...base,
       anchorDown: true,
-      shorePower: SHORE_CONNECTED_WATTS + 100,
+      shoreConnected: 1,
+      speedOverGround: 0
+    })
+    expect(result?.situation).toBe('marina')
+  })
+
+  it('recognises the marina even when AC-in power is near zero in float', () => {
+    // The bug found live: shore power genuinely on, confirmed by the mains
+    // LED, but AC-in wattage down near zero because the charger has reached
+    // float. Connection state must not depend on power draw.
+    const result = detectSituation({
+      ...base,
+      shoreConnected: 1,
       speedOverGround: 0
     })
     expect(result?.situation).toBe('marina')

@@ -93,7 +93,13 @@ export function buildVictronValues(
     { topic: `solarcharger/${solar}/State`, value: power.solarPower > 5 ? 3 : 0 },
 
     { topic: `vebus/${vebus}/Ac/ActiveIn/L1/P`, value: round(power.shorePower, 1) },
-    { topic: `vebus/${vebus}/Ac/ActiveIn/Connected`, value: power.shoreConnected ? 1 : 0 },
+    // The real connection signal: signalk-venus-plugin maps this to
+    // electrical.<instance>.leds.mains, mirroring the Multiplus's own front
+    // panel LED. There is no mapping for an "Ac/ActiveIn/Connected" topic —
+    // that was this emulator inventing a convenience path no real Cerbo sends,
+    // which is exactly how the float-charge false-OFF bug went unnoticed on
+    // the bench.
+    { topic: `vebus/${vebus}/Leds/Mains`, value: power.shoreConnected ? 1 : 0 },
     { topic: `vebus/${vebus}/Ac/Out/L1/P`, value: round(power.dcLoad * 0.2, 1) },
 
     { topic: 'system/0/Dc/Battery/Soc', value: round(power.stateOfCharge * 100, 1) },

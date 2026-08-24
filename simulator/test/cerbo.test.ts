@@ -50,13 +50,16 @@ describe('Cerbo GX emulation', () => {
 
   it('reports shore power while alongside and none once it trips', () => {
     const onShore = valuesFor('marina', 60)
-    expect(onShore.get(`vebus/${INSTANCES.vebusInstance}/Ac/ActiveIn/Connected`)).toBe(1)
+    // Leds/Mains is what signalk-venus-plugin actually maps (to
+    // electrical.<instance>.leds.mains) — the real connection signal, as
+    // opposed to a power reading that can legitimately sag toward zero.
+    expect(onShore.get(`vebus/${INSTANCES.vebusInstance}/Leds/Mains`)).toBe(1)
     expect(onShore.get('system/0/Ac/ActiveIn/Source')).toBe(1)
     expect(onShore.get(`vebus/${INSTANCES.vebusInstance}/Ac/ActiveIn/L1/P`) as number).toBeGreaterThan(0)
 
     // The marina scenario trips the pedestal breaker at t=600 s.
     const tripped = valuesFor('marina', 700)
-    expect(tripped.get(`vebus/${INSTANCES.vebusInstance}/Ac/ActiveIn/Connected`)).toBe(0)
+    expect(tripped.get(`vebus/${INSTANCES.vebusInstance}/Leds/Mains`)).toBe(0)
     expect(tripped.get('system/0/Ac/ActiveIn/Source')).toBe(240)
     expect(tripped.get(`vebus/${INSTANCES.vebusInstance}/Ac/ActiveIn/L1/P`)).toBe(0)
   })

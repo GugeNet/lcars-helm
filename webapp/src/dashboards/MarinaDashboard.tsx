@@ -10,6 +10,7 @@ const WATCHED = [
   'batteryVoltage',
   'batteryCurrent',
   'shorePower',
+  'shoreConnected',
   'solarPower',
   'depthBelowTransducer',
   'windSpeedApparent',
@@ -27,7 +28,7 @@ export function MarinaDashboard(): ReactNode {
   const values = useNumbers(WATCHED)
   const depthHistory = useHistory('depthBelowTransducer', { intervalMs: 30_000, samples: 80 })
 
-  const shorePower = describeShorePower(values.shorePower)
+  const shorePower = describeShorePower(values.shorePower, values.shoreConnected)
 
   return (
     <div className="dash dash--marina">
