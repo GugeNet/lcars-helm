@@ -38,6 +38,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMarinaStore, TableMarinaStore>();
         services.AddSingleton<IAnchorageStore, TableAnchorageStore>();
         services.AddSingleton<IBoatLogArchive, BlobBoatLogArchive>();
+        services.AddSingleton<IVesselStore, TableVesselStore>();
+        services.AddSingleton<ILogUploadStore, TableLogUploadStore>();
 
         return services;
     }

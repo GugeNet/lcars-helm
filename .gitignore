@@ -30,6 +30,7 @@ appsettings.*.local.json
 
 # vite build output; the published package ships it, git does not
 webapp/public/
+webapp/plugin-dist/
 
 # release tarballs built by npm pack
 dist/

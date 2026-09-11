@@ -6,6 +6,7 @@ import { describeDataHealth, useAlarmSound, useTopAlert } from './alerts.js'
 import { useAnchorTrackRecorder } from './situations/anchorStore.js'
 import { useActiveSituation, useSituationStore, useSituationWatcher } from './situations/store.js'
 import { SITUATIONS, situationDefinition } from './situations/types.js'
+import { describeLogStatus, useLogStatus, type LogStatusDisplay } from './store/logStatus.js'
 import { useDataHealth, type DataHealth } from './store/vesselStore.js'
 
 /** Ticks once a minute so the footer clock stays honest. */
@@ -26,10 +27,12 @@ const HEALTH_LABEL: Record<Exclude<DataHealth, 'live'>, string> = {
 
 function StatusLine({
   situationFocus,
-  health
+  health,
+  log
 }: {
   situationFocus: string
   health: DataHealth
+  log: LogStatusDisplay
 }): ReactNode {
   const now = useMinuteClock()
 
@@ -40,6 +43,7 @@ function StatusLine({
       ) : (
         <span className="status-line__item status-line__item--fault">{HEALTH_LABEL[health]}</span>
       )}
+      <span className={`status-line__item${log.fault ? ' status-line__item--fault' : ''}`}>{log.label}</span>
       <span className="status-line__item">{clockTime(now)}</span>
     </span>
   )
@@ -59,6 +63,7 @@ export function App(): ReactNode {
   const alert = useTopAlert()
   const { health, silentForMs } = useDataHealth()
   const fault = describeDataHealth(health, silentForMs)
+  const logStatus = describeLogStatus(useLogStatus())
   useAlarmSound(alert?.alarm === true)
 
   // Precedence: something wrong with the boat, then something wrong with the
@@ -99,7 +104,7 @@ export function App(): ReactNode {
           {entry.short}
         </PillButton>
       ))}
-      footer={<StatusLine situationFocus={definition.focus} health={health} />}
+      footer={<StatusLine situationFocus={definition.focus} health={health} log={logStatus} />}
     >
       <div className="dash-wrap">
         {banner}

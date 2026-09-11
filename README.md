@@ -20,11 +20,11 @@ boat — only the host names differ.
 
 | Path         | What it is                                                         |
 | ------------ | ------------------------------------------------------------------ |
-| `webapp/`    | The LCARS front end. React + Vite, packaged as a Signal K webapp.   |
+| `webapp/`    | The LCARS front end (React + Vite) and the `lcars-helm` Signal K plugin that logs instrument data and uploads it to the cloud, packaged together as one Signal K webapp. |
 | `simulator/` | Boat physics plus YDWG-02 and Cerbo GX emulators.                   |
 | `deploy/`    | Raspberry Pi provisioning, kiosk setup, auto-updater, SK templates. |
 | `scripts/`   | Development helpers.                                                |
-| `cloud/`     | ASP.NET Core Azure app: log ingestion API, analytics dashboard, and marina/anchorage data, backed by Azure Storage. See [cloud/README.md](cloud/README.md). |
+| `cloud/`     | ASP.NET Core Azure app: vessel registration/approval, log ingestion, an analytics dashboard, and marina/anchorage data, backed by Azure Storage. See [cloud/README.md](cloud/README.md). |
 
 ## Getting started
 

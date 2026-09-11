@@ -1,62 +1,129 @@
 @page "/"
+@using LcarsHelm.Cloud.Core.Models
 @inject ILogEntryStore LogEntryStore
-@inject IConfiguration Configuration
+@inject IVesselStore VesselStore
+@rendermode InteractiveServer
 
 <PageTitle>LCARS Cloud — Dashboard</PageTitle>
 
 <h1>Dashboard</h1>
 
-@if (loading)
+@if (vessels is null)
 {
     <p>Loading…</p>
 }
+else if (vessels.Count == 0)
+{
+    <p>No vessel has registered yet. Provision a boat, then approve it under <a href="vessels">Vessels</a>.</p>
+}
 else
 {
-    <p>@entries.Count log entries for <strong>@boatId</strong> in the last 24 hours.</p>
+    <p>
+        <label>
+            Vessel
+            <select value="@selectedVesselId" @onchange="OnVesselChangedAsync">
+                @foreach (var vessel in vessels)
+                {
+                    <option value="@vessel.Id">@vessel.Name</option>
+                }
+            </select>
+        </label>
+    </p>
 
-    @if (latest is not null)
+    @if (loadingEntries)
     {
-        <h2>Latest reading</h2>
-        <dl>
-            <dt>Timestamp</dt>
-            <dd>@latest.Timestamp</dd>
-            <dt>Situation</dt>
-            <dd>@(latest.Situation?.ToString() ?? "unknown")</dd>
-            <dt>Position</dt>
-            <dd>@(latest.Position is { } p ? $"{p.Latitude:F5}, {p.Longitude:F5}" : "-")</dd>
-            <dt>Speed over ground</dt>
-            <dd>@(latest.SpeedOverGround?.ToString("F1") ?? "-") kn</dd>
-            <dt>True wind</dt>
-            <dd>@(latest.Wind?.SpeedTrue?.ToString("F1") ?? "-") kn at @(latest.Wind?.DirectionTrue?.ToString("F0") ?? "-")°</dd>
-            <dt>Battery state of charge</dt>
-            <dd>@(latest.Electrical?.StateOfCharge?.ToString("F0") ?? "-") %</dd>
-        </dl>
+        <p>Loading…</p>
     }
     else
     {
-        <p>No log entries yet.</p>
+        <p>@entries.Count log entries for <strong>@SelectedVesselName</strong> in the last 24 hours.</p>
+
+        @if (latest is not null)
+        {
+            <h2>Latest reading</h2>
+            <dl>
+                <dt>Timestamp</dt>
+                <dd>@latest.Timestamp.ToLocalTime()</dd>
+                <dt>Situation</dt>
+                <dd>@(latest.Situation?.ToString() ?? "unknown")</dd>
+                <dt>Position</dt>
+                <dd>@(latest.Position is { } p ? $"{p.Latitude:F5}, {p.Longitude:F5}" : "-")</dd>
+                <dt>Speed over ground</dt>
+                <dd>@(FormatKnots(latest.SpeedOverGround)) kn</dd>
+                <dt>True wind</dt>
+                <dd>@(FormatKnots(latest.Wind?.SpeedTrue)) kn at @(FormatDegrees(latest.Wind?.DirectionTrue))&deg;</dd>
+                <dt>Battery state of charge</dt>
+                <dd>@(latest.Electrical?.StateOfCharge is { } soc ? (soc * 100).ToString("F0") : "-") %</dd>
+            </dl>
+        }
+        else
+        {
+            <p>No log entries yet.</p>
+        }
     }
 }
 
 @code {
+    // LogEntry values are Signal K's own SI units (m/s, radians) — see
+    // LcarsHelm.Cloud.Core.Logs.SampleMapper — so the dashboard converts for display
+    // rather than showing raw SI under a "kn"/"°" label, which is what this page did
+    // before a vessel could actually upload real logs.
+    private const double MetresPerSecondPerKnot = 0.514444;
+
+    private List<Vessel>? vessels;
+    private Guid selectedVesselId;
+    private bool loadingEntries;
     private readonly List<LogEntry> entries = [];
     private LogEntry? latest;
-    private bool loading = true;
-    private string boatId = "lcars-helm";
+
+    private string SelectedVesselName => vessels?.FirstOrDefault(v => v.Id == selectedVesselId)?.Name ?? "-";
 
     protected override async Task OnInitializedAsync()
     {
-        boatId = Configuration["DefaultBoatId"] ?? boatId;
+        var loaded = new List<Vessel>();
+        await foreach (var vessel in VesselStore.ListAsync())
+        {
+            loaded.Add(vessel);
+        }
+        vessels = loaded.OrderBy(v => v.Name).ToList();
+
+        if (vessels.Count > 0)
+        {
+            selectedVesselId = vessels[0].Id;
+            await LoadEntriesAsync();
+        }
+    }
+
+    private async Task OnVesselChangedAsync(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+        {
+            selectedVesselId = id;
+            await LoadEntriesAsync();
+        }
+    }
+
+    private async Task LoadEntriesAsync()
+    {
+        loadingEntries = true;
+        entries.Clear();
+        latest = null;
 
         var to = DateTimeOffset.UtcNow;
         var from = to.AddHours(-24);
 
-        await foreach (var entry in LogEntryStore.QueryAsync(boatId, from, to))
+        await foreach (var entry in LogEntryStore.QueryAsync(selectedVesselId.ToString(), from, to))
         {
             entries.Add(entry);
         }
 
         latest = entries.OrderByDescending(e => e.Timestamp).FirstOrDefault();
-        loading = false;
+        loadingEntries = false;
     }
+
+    private static string FormatKnots(double? metresPerSecond) =>
+        metresPerSecond is { } value ? (value / MetresPerSecondPerKnot).ToString("F1") : "-";
+
+    private static string FormatDegrees(double? radians) =>
+        radians is { } value ? (value * 180 / Math.PI).ToString("F0") : "-";
 }

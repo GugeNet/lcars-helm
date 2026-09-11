@@ -1,0 +1,14 @@
+{
+  "$comment": "lcars-helm plugin configuration: local logging plus opportunistic upload to the cloud. Placeholders are replaced by deploy/provision.sh on the Pi and by scripts/setup-dev-signalk.mjs during development, exactly like venus.json. Leaving the cloud URL blank (provision.sh's default with no --cloud-url given) is a valid, supported configuration: the plugin still samples and writes the local NDJSON log, it just never has anywhere to upload it, and /plugins/lcars-helm/status reports vessel.state as 'unconfigured' rather than treating that as an error. The vessel's ECDSA key pair is generated on first start under this plugin's own data directory (plugin-config-data/lcars-helm/), not here — this file carries no secret.",
+  "enabled": true,
+  "enableDebug": false,
+  "configuration": {
+    "cloudUrl": "__CLOUD_URL__",
+    "vesselName": "__VESSEL_NAME__",
+    "logging": true,
+    "underwayIntervalMs": 1000,
+    "anchoredIntervalMs": 10000,
+    "marinaIntervalMs": 60000,
+    "maxOutboxBytes": 524288000
+  }
+}
