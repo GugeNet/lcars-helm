@@ -24,6 +24,29 @@ public sealed class TableLogEntryStore : ILogEntryStore
         await _table.AddEntityAsync(entity, cancellationToken);
     }
 
+    public async Task AddBatchAsync(IReadOnlyCollection<LogEntry> entries, CancellationToken cancellationToken = default)
+    {
+        if (entries.Count == 0) return;
+        await _ensureTable.Value;
+
+        // A transaction batch may only touch one partition, and Table Storage caps a
+        // batch at 100 actions, so group by partition (boat + UTC day) first and then
+        // chunk within each group.
+        var byPartition = entries
+            .Select(LogEntryEntity.FromModel)
+            .GroupBy(entity => entity.PartitionKey);
+
+        foreach (var partition in byPartition)
+        {
+            foreach (var chunk in partition.Chunk(100))
+            {
+                var actions = chunk.Select(entity =>
+                    new TableTransactionAction(TableTransactionActionType.Add, entity));
+                await _table.SubmitTransactionAsync(actions, cancellationToken);
+            }
+        }
+    }
+
     public async IAsyncEnumerable<LogEntry> QueryAsync(
         string boatId,
         DateTimeOffset from,

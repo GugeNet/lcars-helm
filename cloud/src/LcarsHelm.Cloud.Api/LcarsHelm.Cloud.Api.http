@@ -1,6 +1,35 @@
 @LcarsHelm.Cloud.Api_HostAddress = http://localhost:5225
 
-GET {{LcarsHelm.Cloud.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Register a vessel (anonymous). Re-posting the same publicKeyPem returns the
+### existing vessel instead of creating a duplicate.
+POST {{LcarsHelm.Cloud.Api_HostAddress}}/api/vessels/register
+Content-Type: application/json
+
+{
+  "name": "Bench",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+}
+
+###
+
+### Everything below needs a bearer token minted with the vessel's private key —
+### see webapp/plugin/vesselKey.ts. Approve the vessel in the dashboard first, or
+### /logs below returns 403 vessel-pending.
+@vesselId = 00000000-0000-0000-0000-000000000000
+@token = replace-with-a-minted-token
+
+GET {{LcarsHelm.Cloud.Api_HostAddress}}/api/vessels/me
+Authorization: Bearer {{token}}
+
+###
+
+POST {{LcarsHelm.Cloud.Api_HostAddress}}/api/vessels/{{vesselId}}/logs
+Authorization: Bearer {{token}}
+Content-Type: application/x-ndjson
+Content-Encoding: gzip
+X-Log-File: {{vesselId}}_2026-09-11T10-00-00Z.ndjson.gz
+X-Content-Sha256: replace-with-the-sha256-of-the-body
+
+< ./sample-log.ndjson.gz
 
 ###

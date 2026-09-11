@@ -29,6 +29,23 @@ function saveSituation(situation: SituationId): void {
   }
 }
 
+const PLUGIN_SITUATION_URL = '/plugins/lcars-helm/situation'
+
+/**
+ * Tells the logging plugin which situation to log under, so a manual choice or an
+ * accepted suggestion — including racing, which the plugin can never infer on its
+ * own (see webapp/plugin/situation.ts) — reaches the log immediately rather than
+ * only on the plugin's next restart. Fire-and-forget: a plugin that is not
+ * installed or not reachable right now just keeps inferring locally instead.
+ */
+function reportSituationToPlugin(situation: SituationId): void {
+  void fetch(PLUGIN_SITUATION_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ situation })
+  }).catch(() => {})
+}
+
 interface SituationState {
   active: SituationId
   /** A pending offer to change situation, awaiting a tap. */
@@ -47,6 +64,7 @@ export const useSituationStore = create<SituationState>((set, get) => ({
   dismissed: null,
   setActive: (active) => {
     saveSituation(active)
+    reportSituationToPlugin(active)
     // Choosing by hand clears anything pending, including a past dismissal.
     set({ active, suggestion: null, dismissed: null })
   },
@@ -58,6 +76,7 @@ export const useSituationStore = create<SituationState>((set, get) => ({
     const { suggestion } = get()
     if (!suggestion) return
     saveSituation(suggestion.situation)
+    reportSituationToPlugin(suggestion.situation)
     set({ active: suggestion.situation, suggestion: null, dismissed: null })
   },
   dismiss: () => {
@@ -65,6 +84,12 @@ export const useSituationStore = create<SituationState>((set, get) => ({
     set({ suggestion: null, dismissed: suggestion?.situation ?? null })
   }
 }))
+
+// Reported once on load, so a plugin that has never heard from the display —
+// freshly installed, or restarted since — picks up what the crew already had
+// set rather than falling back to inference (or, for racing, to nothing at all)
+// until the next manual change.
+reportSituationToPlugin(useSituationStore.getState().active)
 
 const WATCHED = ['speedOverGround', 'engineRevolutions', 'shoreConnected'] as const
 

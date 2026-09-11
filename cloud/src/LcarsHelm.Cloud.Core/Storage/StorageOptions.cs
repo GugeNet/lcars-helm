@@ -20,5 +20,7 @@ public sealed class StorageOptions
     public string LogEntriesTableName { get; set; } = "LogEntries";
     public string MarinasTableName { get; set; } = "Marinas";
     public string AnchoragesTableName { get; set; } = "Anchorages";
+    public string VesselsTableName { get; set; } = "Vessels";
+    public string LogUploadsTableName { get; set; } = "LogUploads";
     public string ArchiveContainerName { get; set; } = "log-archives";
 }

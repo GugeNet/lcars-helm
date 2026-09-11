@@ -17,12 +17,20 @@ const ydwgHost = process.env.LCARS_YDWG_HOST ?? '127.0.0.1'
 const ydwgPort = process.env.LCARS_YDWG_PORT ?? '1457'
 const cerboHost = process.env.LCARS_CERBO_HOST ?? '127.0.0.1'
 const cerboPort = process.env.LCARS_CERBO_PORT ?? '1883'
+// Blank by default: the plugin still logs locally with no cloud configured, and
+// most dev work on the simulator/display doesn't need LcarsHelm.Cloud.Api running
+// at all. Point LCARS_CLOUD_URL at `dotnet run --project cloud/src/LcarsHelm.Cloud.Api`
+// (http://localhost:5225 by default) to exercise registration and upload too.
+const cloudUrl = process.env.LCARS_CLOUD_URL ?? ''
+const vesselName = process.env.LCARS_VESSEL_NAME ?? 'Bench'
 
 const substitutions = {
   __YDWG_HOST__: ydwgHost,
   __YDWG_PORT__: ydwgPort,
   __CERBO_HOST__: cerboHost,
-  __CERBO_PORT__: cerboPort
+  __CERBO_PORT__: cerboPort,
+  __CLOUD_URL__: cloudUrl,
+  __VESSEL_NAME__: vesselName
 }
 
 function render(templatePath, outputPath) {
@@ -49,5 +57,10 @@ render(
   join(deployDir, 'plugin-config-data', 'venus.json'),
   join(configDir, 'plugin-config-data', 'venus.json')
 )
+render(
+  join(deployDir, 'plugin-config-data', 'lcars-helm.json'),
+  join(configDir, 'plugin-config-data', 'lcars-helm.json')
+)
 
 console.log(`YDWG at ${ydwgHost}:${ydwgPort}, Cerbo at ${cerboHost}:${cerboPort}`)
+console.log(`Vessel "${vesselName}", cloud ${cloudUrl || '(not configured — logging stays local)'}`)

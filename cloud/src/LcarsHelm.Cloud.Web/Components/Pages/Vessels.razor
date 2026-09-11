@@ -1,0 +1,88 @@
+@page "/vessels"
+@using LcarsHelm.Cloud.Core.Models
+@inject IVesselStore VesselStore
+@rendermode InteractiveServer
+
+<PageTitle>LCARS Cloud — Vessels</PageTitle>
+
+<h1>Vessels</h1>
+
+<p>
+    A vessel registers itself the first time its plugin sees the network, using a key
+    pair generated on the boat. It cannot upload logs until approved here — that is the
+    only gate between "holds a key" and "we actually operate this boat".
+</p>
+
+@if (vessels is null)
+{
+    <p>Loading…</p>
+}
+else if (vessels.Count == 0)
+{
+    <p>No vessel has registered yet.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Registered</th>
+                <th>Last seen</th>
+                <th>Last upload</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var vessel in vessels)
+            {
+                <tr>
+                    <td>@vessel.Name</td>
+                    <td>@vessel.Status</td>
+                    <td>@vessel.RegisteredAt.ToLocalTime().ToString("g")</td>
+                    <td>@(vessel.LastSeenAt?.ToLocalTime().ToString("g") ?? "-")</td>
+                    <td>@(vessel.LastUploadAt?.ToLocalTime().ToString("g") ?? "-")</td>
+                    <td>
+                        @if (vessel.Status != VesselStatus.Approved)
+                        {
+                            <button @onclick="() => SetStatusAsync(vessel, VesselStatus.Approved)">Approve</button>
+                        }
+                        @if (vessel.Status != VesselStatus.Revoked)
+                        {
+                            <button @onclick="() => SetStatusAsync(vessel, VesselStatus.Revoked)">Revoke</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Vessel>? vessels;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var loaded = new List<Vessel>();
+        await foreach (var vessel in VesselStore.ListAsync())
+        {
+            loaded.Add(vessel);
+        }
+
+        vessels = loaded.OrderBy(v => v.Name).ToList();
+    }
+
+    private async Task SetStatusAsync(Vessel vessel, VesselStatus status)
+    {
+        var updated = vessel with
+        {
+            Status = status,
+            ApprovedAt = status == VesselStatus.Approved ? DateTimeOffset.UtcNow : vessel.ApprovedAt,
+        };
+        await VesselStore.UpdateAsync(updated);
+        await LoadAsync();
+    }
+}

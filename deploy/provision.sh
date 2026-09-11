@@ -26,6 +26,10 @@ YDWG_HOST="ydwg.local"
 YDWG_PORT="1457"
 CERBO_HOST="venus.local"
 CERBO_PORT="1883"
+# Left blank, logging still runs locally; the plugin just has nowhere to upload
+# to, and its status reports that plainly rather than treating it as an error.
+CLOUD_URL=""
+VESSEL_NAME="$(hostname)"
 NODE_MAJOR="22"
 SKIP_KIOSK="no"
 GITHUB_TOKEN="${LCARS_GITHUB_TOKEN:-}"
@@ -40,6 +44,11 @@ Provision a Raspberry Pi for lcars-helm.
   --cerbo-host <host>   Victron GX device (default venus.local, which is what
                         a GX announces regardless of its configured name)
   --cerbo-port <port>   Cerbo MQTT port (default 1883)
+  --cloud-url <url>     LcarsHelm.Cloud.Api base URL, e.g. https://lcarshelm-api.azurewebsites.net
+                        Omit to log locally only; the vessel can be pointed at
+                        the cloud later by setting this in the Signal K admin UI.
+  --vessel-name <name>  Shown in the cloud dashboard once this vessel is
+                        approved (default: this Pi's hostname)
   --repo <owner/name>   GitHub repository to pull releases from
   --github-token <tok>  Optional; not needed while the repo is public. Raises
                         the rate limit and would be needed again if it were
@@ -56,6 +65,8 @@ while [[ $# -gt 0 ]]; do
     --ydwg-port) YDWG_PORT="$2"; shift 2 ;;
     --cerbo-host) CERBO_HOST="$2"; shift 2 ;;
     --cerbo-port) CERBO_PORT="$2"; shift 2 ;;
+    --cloud-url) CLOUD_URL="$2"; shift 2 ;;
+    --vessel-name) VESSEL_NAME="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
     --no-kiosk) SKIP_KIOSK="yes"; shift ;;
@@ -162,6 +173,8 @@ render() {
       -e "s|__YDWG_PORT__|${YDWG_PORT}|g" \
       -e "s|__CERBO_HOST__|${CERBO_HOST}|g" \
       -e "s|__CERBO_PORT__|${CERBO_PORT}|g" \
+      -e "s|__CLOUD_URL__|${CLOUD_URL}|g" \
+      -e "s|__VESSEL_NAME__|${VESSEL_NAME}|g" \
       "$src" >"$dest"
   echo "    wrote $dest"
 }
@@ -169,6 +182,7 @@ render() {
 log "Writing Signal K configuration"
 render "$CONF_SRC/signalk/settings.template.json" "$SK_DIR/settings.json"
 render "$CONF_SRC/signalk/plugin-config-data/venus.json" "$SK_DIR/plugin-config-data/venus.json"
+render "$CONF_SRC/signalk/plugin-config-data/lcars-helm.json" "$SK_DIR/plugin-config-data/lcars-helm.json"
 
 # Check the endpoints now rather than letting a wrong name show up later as a
 # blank display with nothing to explain it. Neither failure stops provisioning:
@@ -360,6 +374,9 @@ fi
 releases_note="${REPO} (public, no token needed)"
 sudo test -f "$ENV_FILE" && releases_note="${REPO} (token in ${ENV_FILE})"
 
+cloud_note="not configured — logging stays local until set in the Signal K admin UI"
+[[ -n "$CLOUD_URL" ]] && cloud_note="$CLOUD_URL"
+
 cat <<EOF
 
 $(log "Done")
@@ -368,11 +385,21 @@ $(log "Done")
   Gateway:     ${YDWG_HOST}:${YDWG_PORT}
   Cerbo:       ${CERBO_HOST}:${CERBO_PORT}
   Releases:    ${releases_note}
+  Vessel:      ${VESSEL_NAME}
+  Cloud:       ${cloud_note}
 
   systemctl status signalk lcars-update.timer
   journalctl -u lcars-update -f
 
 EOF
+
+if [[ -n "$CLOUD_URL" ]]; then
+  echo "  This vessel will register itself with the cloud the first time it sees"
+  echo "  the network, then sit pending until approved on the Vessels page of the"
+  echo "  LCARS Cloud dashboard — no logs upload before that. Check progress with:"
+  echo "      curl http://localhost:3000/plugins/lcars-helm/status"
+  echo
+fi
 
 if [[ -n "${PLUGIN_FAILURES:-}" ]]; then
   echo "  WARNING: these plugins did not install: ${PLUGIN_FAILURES}"

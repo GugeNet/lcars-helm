@@ -1,10 +1,50 @@
+using System.Threading.RateLimiting;
+using LcarsHelm.Cloud.Api.Auth;
+using LcarsHelm.Cloud.Api.Endpoints;
 using LcarsHelm.Cloud.Core.Models;
 using LcarsHelm.Cloud.Core.Storage;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The upload endpoint takes a whole gzip log file in one request; Kestrel's 30 MB
+// default would reject a busy sailing day's file well before the plugin's own
+// 500 MB outbox cap ever kicks in.
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 50 * 1024 * 1024);
+
 builder.Services.AddOpenApi();
 builder.Services.AddLcarsCloudStorage(builder.Configuration);
+builder.Services.AddMemoryCache();
+
+builder.Services
+    .AddAuthentication(VesselKeyAuthenticationHandler.SchemeName)
+    .AddScheme<VesselKeyAuthenticationSchemeOptions, VesselKeyAuthenticationHandler>(
+        VesselKeyAuthenticationHandler.SchemeName, _ => { });
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("ApprovedVessel", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("vesselStatus", nameof(VesselStatus.Approved)));
+
+// Swaps the default 403 body for one that says whether the vessel is pending
+// approval or has been revoked, rather than a bare Forbidden a Pi would retry
+// forever without anyone finding out why.
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, VesselAuthorizationResultHandler>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    // Per source IP, not global: registration is anonymous, so this is the only
+    // thing standing between the endpoint and someone trying to enumerate or spam it.
+    options.AddPolicy("register", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
 
 var app = builder.Build();
 
@@ -14,6 +54,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapVesselsEndpoints();
+app.MapLogsEndpoints();
 
 var logEntries = app.MapGroup("/api/log-entries").WithTags("LogEntries");
 
@@ -111,3 +157,8 @@ anchorages.MapDelete("/{id:guid}", async (Guid id, IAnchorageStore store, Cancel
 });
 
 app.Run();
+
+// Top-level statements emit a `Program` type into the global namespace but keep it
+// internal; this partial declaration is the standard way to give the test project's
+// WebApplicationFactory<Program> something to see.
+public partial class Program;

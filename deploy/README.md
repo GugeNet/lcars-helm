@@ -91,6 +91,48 @@ Add `--no-kiosk` for a Pi with no display attached.
 | `lcars-update.timer`  | Checks GitHub for a new release every ten minutes    |
 | `lcars-kiosk`         | Chromium full screen, started with the desktop       |
 
+## Cloud logging
+
+The `lcars-helm` Signal K plugin — bundled into the same package as the display,
+so it needs nothing extra installed — samples the instruments continuously (1 Hz
+under way, 10 s at anchor, 60 s in the marina) into a local NDJSON log and, when a
+cloud URL is configured, uploads finished files to `LcarsHelm.Cloud.Api` whenever
+the network allows. Logging always works with no cloud configured at all; only
+upload needs one.
+
+```bash
+deploy/provision.sh --ydwg-host ydwg.local --cerbo-host venus.local \
+  --cloud-url https://lcarshelm-api.azurewebsites.net --vessel-name Cinderella
+```
+
+On first start the plugin generates an ECDSA key pair under its own data
+directory (`~/.signalk/plugin-config-data/lcars-helm/vessel/`) and registers the
+public key with the cloud under the given vessel name. **The private key never
+leaves the Pi** — every upload is a request signed with it, not a login. A vessel
+starts **pending** and uploads nothing until a person approves it on the Vessels
+page of the LCARS Cloud dashboard; there is no other way in, deliberately, so a
+stray key cannot start pushing data for a boat nobody meant to onboard.
+
+To check in on it:
+
+```bash
+curl http://localhost:3000/plugins/lcars-helm/status
+```
+
+which reports the current situation and sample interval, the vessel's id and
+approval state (`unconfigured`, `unregistered`, `pending`, `approved`, or
+`revoked`), and the upload queue (files pending, last success, last error). The
+display's footer shows a summary of the same thing — `LOG SYNCED`,
+`LOG 3 PENDING`, `LOG OFFLINE 3 PENDING`, `LOG AWAITING APPROVAL`, or `LOG OFF`.
+
+No cloud URL, or a vessel not yet approved, is not a fault: the log keeps being
+written locally either way, and nothing is lost while it waits — the outbox
+simply grows until it can be sent. Setting `--cloud-url` on an already-provisioned
+Pi (or changing it later from the Signal K admin UI's Plugin Config page) is
+enough to have it start registering on the next network contact; re-running
+`provision.sh` never overwrites a config file that already exists, so change it
+through the admin UI rather than by re-provisioning.
+
 ## Releases
 
 The Pi installs whatever the newest GitHub release offers, so a release is the

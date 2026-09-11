@@ -4,30 +4,35 @@
   "description": "LCARS instrument display for Signal K",
   "license": "MIT",
   "type": "module",
+  "main": "plugin-dist/index.cjs",
   "keywords": [
     "signalk-webapp",
-    "signalk-category-instruments"
+    "signalk-category-instruments",
+    "signalk-node-server-plugin"
   ],
+  "signalk-plugin-enabled-by-default": true,
   "signalk": {
     "displayName": "LCARS Helm",
     "appIcon": "./icon.svg"
   },
   "files": [
-    "public/"
+    "public/",
+    "plugin-dist/"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && tsc -p tsconfig.plugin.json && vite build && vite build --config vite.plugin.config.ts",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit",
+    "typecheck": "tsc -b --noEmit && tsc -p tsconfig.plugin.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "//": "Everything is a devDependency on purpose. What ships is `public/` — static files Vite has already bundled React and zustand into — so the package has no runtime dependencies at all. Listing them as `dependencies` would make the boat download React over 4G on every update and never load it.",
+  "//": "The webapp half ships as `public/` — static files Vite has already bundled React and zustand into — with no runtime dependencies at all, so listing them as `dependencies` would make the boat download React over 4G on every update and never load it. The plugin half ships as `plugin-dist/index.cjs`, a bundle with no dependencies of its own (only node:* built-ins). Everything below is a devDependency for exactly that reason.",
   "devDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.2",
+    "@types/node": "^22.10.2",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^6.0.5",
